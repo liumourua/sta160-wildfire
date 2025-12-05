@@ -1,326 +1,498 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GRU & Hazard RNN — Wildfire Time Series</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f7f7f7;
-      color: #222;
-    }
-    header {
-      background: #1f2933;
-      color: #fff;
-      padding: 18px 20px;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 22px;
-    }
-    header p {
-      margin: 6px 0 0;
-      font-size: 14px;
-      opacity: 0.85;
-    }
-    main {
-      max-width: 980px;
-      margin: 20px auto 40px;
-      padding: 0 16px 40px;
-      background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      border-radius: 8px;
-    }
-    h2, h3 {
-      margin-top: 28px;
-    }
-    p {
-      line-height: 1.6;
-      font-size: 14px;
-    }
-    .nav-links {
-      margin: 12px 0 24px;
-      padding-left: 18px;
-      font-size: 14px;
-    }
-    .nav-links a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .nav-links a:hover {
-      text-decoration: underline;
-    }
-    .panel {
-      margin: 26px 0 40px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #e5e5e5;
-    }
-    .panel:last-of-type {
-      border-bottom: none;
-    }
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-    .panel-header h3 {
-      margin: 0;
-    }
-    .panel-header a {
-      font-size: 13px;
-      color: #2563eb;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .panel-header a:hover {
-      text-decoration: underline;
-    }
-    iframe {
-      width: 100%;
-      height: 420px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background: #fafafa;
-    }
-    .footnote {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-    }
-    .tag {
-      display: inline-block;
-      padding: 2px 6px;
-      font-size: 11px;
-      border-radius: 999px;
-      background: #e5e7eb;
-      margin-left: 6px;
-    }
-    code {
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 12px;
-      background: #f3f4f6;
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
-  </style>
-</head>
-<body>
+    <meta charset="UTF-8">
+    <title>STA160 – GRU & Hazard RNN wildfire forecasts</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <!-- 简单一点的现代字体 -->
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg-alt: #020617;
+            --card-bg: #111827;
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.1);
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --border-subtle: #1f2937;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(16px);
+            background: linear-gradient(to right, rgba(15, 23, 42, 0.95), rgba(3, 7, 18, 0.95));
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .nav-title {
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
+        }
+
+        .nav-title span.small {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-main);
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem 1.25rem 3rem;
+        }
+
+        section {
+            margin-top: 2rem;
+        }
+
+        h1, h2, h3 {
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        h1 {
+            font-size: 1.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        h2 {
+            font-size: 1.35rem;
+            margin-bottom: 0.4rem;
+        }
+
+        h3 {
+            font-size: 1.05rem;
+            margin: 0 0 0.5rem;
+        }
+
+        .lead {
+            color: var(--text-muted);
+            max-width: 800px;
+            font-size: 0.96rem;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+
+        .pill {
+            font-size: 0.75rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: #cbd5f5;
+            background: rgba(15, 23, 42, 0.85);
+        }
+
+        .pill.strong {
+            border-color: rgba(56, 189, 248, 0.7);
+            background: var(--accent-soft);
+            color: #e0f2fe;
+        }
+
+        .card-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.1rem;
+        }
+
+        .card-wide {
+            border-radius: 0.9rem;
+            padding: 1rem 1.1rem;
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            margin-top: 1.1rem;
+        }
+
+        .card {
+            border-radius: 0.9rem;
+            padding: 0.9rem 1rem;
+            background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.18), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+            margin-bottom: 0.4rem;
+        }
+
+        iframe.plot-frame {
+            width: 100%;
+            height: 430px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.75rem;
+            background: #020617;
+        }
+
+        .small-note {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+        }
+
+        /* 交互选图样式 */
+
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin: 0.5rem 0 0.75rem;
+        }
+
+        .control-bar label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .control-bar select {
+            margin-left: 0.35rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: #020617;
+            color: var(--text-main);
+            font-size: 0.85rem;
+        }
+
+        .diag-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.4fr);
+            grid-template-rows: auto auto;
+            gap: 0.9rem;
+            margin-top: 0.4rem;
+        }
+
+        .diag-grid figure {
+            margin: 0;
+            border-radius: 0.9rem;
+            border: 1px solid var(--border-subtle);
+            background: #020617;
+            padding: 0.4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .diag-grid img {
+            width: 100%;
+            border-radius: 0.55rem;
+            display: block;
+        }
+
+        .diag-grid figcaption {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 900px) {
+            .card-grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .diag-grid {
+                grid-template-columns: 1fr;
+            }
+
+            iframe.plot-frame {
+                height: 380px;
+            }
+        }
+
+        .downloads {
+            list-style: none;
+            padding-left: 0;
+            font-size: 0.9rem;
+        }
+
+        .downloads li {
+            margin-bottom: 0.25rem;
+        }
+
+        footer {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1rem 1.25rem 2rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+
+<body>
 <header>
-  <h1>GRU-based ignition model & hazard RNN</h1>
-  <p>
-    Short-term wildfire ignition forecasting (GRU + spatial prior) and post-fire hazard analysis
-    across U.S. regions from 2013–2025.
-  </p>
+    <div class="nav-inner">
+        <div class="nav-title">
+            <span>Wildfire GRU & hazard RNN</span>
+            <span class="small">STA160 project</span>
+        </div>
+        <nav class="nav-links">
+            <a href="#overview">Overview</a>
+            <a href="#gru">GRU performance</a>
+            <a href="#diag">Per-region diagnostics</a>
+            <a href="#hazard">Post-fire hazard</a>
+            <a href="#tables">Download tables</a>
+        </nav>
+    </div>
 </header>
 
 <main>
+    <!-- 概览 -->
+    <section id="overview">
+        <h1>Short-term wildfire ignition forecasts</h1>
+        <p class="lead">
+            We use a GRU-based ignition model with a learned spatial prior and a discrete-time hazard
+            RNN to forecast where and when wildfires are likely to ignite or re-ignite across CONUS.
+            This page summarises the main model results and provides interactive views by region.
+        </p>
+        <div class="pill-row">
+            <span class="pill strong">GRU + CatBoost ignition prior</span>
+            <span class="pill">Horizons k = 7 &amp; 14 days</span>
+            <span class="pill">Region × latitude bands</span>
+            <span class="pill">Post-fire re-ignition hazards</span>
+        </div>
+    </section>
 
-  <!-- 简单目录 -->
-  <div class="nav-links">
-    Jump to:
-    <a href="#methods">Methods</a> ·
-    <a href="#results">Results</a> ·
-    <a href="#gru-pr">Region PR curves</a> ·
-    <a href="#gru-summary">GRU summary</a> ·
-    <a href="#operating">Operating points</a> ·
-    <a href="#delta">Prior vs no-prior</a> ·
-    <a href="#haz-wait">Waiting times</a> ·
-    <a href="#haz-cum">Re-ignition probability</a>
-  </div>
+    <!-- GRU 全局表现 -->
+    <section id="gru">
+        <h2>GRU performance across regions</h2>
+        <p class="small-note">
+            The plots below use the test-set predictions (2013–2025 labels) with temperature-scaled probabilities.
+            They summarise calibration, ranking quality, and recommended operating points.
+        </p>
 
-  <!-- Methods 摘要 -->
-  <section id="methods">
-    <h2>Methods (time series & models)</h2>
+        <div class="card-grid-2">
+            <div class="card">
+                <h3>Region-wise PR-AUC / ROC-AUC (k=7 vs k=14)</h3>
+                <p>Compare performance across all region–latitude bands and between the two horizons.</p>
+                <iframe class="plot-frame" src="gru_summary.html"></iframe>
+            </div>
 
-    <h3>Data processing and time series setup</h3>
-    <p>
-      We represent the study area on a regular grid so that fires can be tracked at fixed sites:
-      each 10–15 km² cell has its own daily time series with a wildfire indicator in {0,1} and
-      gridded weather and fuel covariates. All inputs use information available on or before
-      day <em>t</em>. For each site-day we constructed history-safe predictors, including 1-day
-      lags of key variables, 7–30 day rolling means, totals and extremes, and a 30-day “dryness”
-      counter (number of days without rain).
-    </p>
-    <p>
-      Because some region–latitude bands contain very few fires, we run all analyses separately for
-      each band but also report results for three pooled “combined” bands to stabilise estimates:
-      NorthEast_NorthBand (NorthEast_FarNorth + NorthEast_North), East_NorthBand (East_FarNorth +
-      East_North), and CentralWest_Mid+South (Central West_Mid + Central West_South). The original
-      sub-regions are still modelled and reported individually.
-    </p>
+            <div class="card">
+                <h3>PR curves overlay by region (k=14, with prior)</h3>
+                <p>Interactive precision–recall curves; use the legend to toggle individual regions.</p>
+                <iframe class="plot-frame" src="gru_pr_curves.html"></iframe>
+            </div>
+        </div>
 
-    <h3>Learned ignition prior</h3>
-    <p>
-      To obtain a learned ignition prior, we trained a CatBoost classifier in an expanding-window
-      fashion: earlier years are used to predict later years, and for each grid-day we compute an
-      out-of-fold ignition probability that respects temporal order. From this prior we derive
-      several summary features—the logit transform of the prior score, its within-day rank among
-      cells, short lags, and 7-day rolling summaries—which are concatenated with the physical
-      covariates and fed into the GRU model. The post-fire hazard analysis uses only days with
-      wildfires and excludes these covariates.
-    </p>
+        <div class="card-grid-2" style="margin-top: 1.1rem;">
+            <div class="card">
+                <h3>Recommended operating points (k=14, with prior)</h3>
+                <p>Fixed-precision thresholds or Top-K rules for each region with ~30% precision when feasible.</p>
+                <iframe class="plot-frame" src="operating_points.html"></iframe>
+            </div>
 
-    <h3>Short-term ignition prediction (GRU + prior)</h3>
-    <p>
-      The GRU model aims to estimate the probability that at least one new fire occurs in the next
-      <em>k</em> days, with horizons k = 7 and k = 14. For each site and each day t with no fire
-      (Wildfire<sub>t</sub> = 0), the GRU input is the previous 28 days of engineered features and
-      prior features, and the label is 1 if there is a fire on any day in [t+1, t+k]. We use strict
-      temporal splits by label year: 2013–2021 for training, 2022 for validation, and 2023–2025
-      for testing, and exclude labels within 7 days of the year boundaries to reduce dependence
-      between splits.
-    </p>
-    <p>
-      We use a single-layer GRU with a sigmoid output and optimize a weighted binary cross-entropy
-      loss to address class imbalance. Early stopping is based on validation PR-AUC, and we apply
-      temperature scaling on the validation set to calibrate probabilities. Evaluation metrics on
-      the held-out test set include PR and ROC curves, Brier score, reliability diagrams, and
-      cumulative gain/lift curves. For operational use, we sweep two decision rules: (i) a
-      fixed-precision threshold (e.g. 30% precision) and (ii) a Top-K rule that flags only the
-      highest-risk 0.1–0.2% of grid-days for patrol or resource allocation.
-    </p>
+            <div class="card">
+                <h3>Gain from adding the ignition prior</h3>
+                <p>Change in Top-3% precision when we switch from GRU without prior to GRU with prior,
+                   for both k=7 and k=14.</p>
+                <iframe class="plot-frame" src="delta_top3.html"></iframe>
+            </div>
+        </div>
+    </section>
 
-    <h3>Post-fire hazard (re-ignition) analysis</h3>
-    <p>
-      To avoid counting a single fire episode over several days, we apply a cooldown window of
-      D = 3 days: ignitions closer than D days are merged into one event. For each site we then
-      compute waiting times (days) between consecutive fire episodes and right-censor very long
-      gaps at 60 days, reported as a “60+ days” bin. We pool sites within each region × latitude
-      band and, in discrete time with 1-day steps, form risk-set counts. From these we estimate
-      discrete-time hazards, survival S(t), and the cumulative re-ignition probability
-      F(T) = P(T ≤ T), which are used to construct regional cumulative hazard curves and summary
-      statistics (e.g. median inter-fire gaps and P(T ≤ 7, 14, 30, 60)).
-    </p>
-  </section>
+    <!-- 交互：单一区域诊断图 -->
+    <section id="diag">
+        <h2>Per-region diagnostics viewer</h2>
+        <div class="card-wide">
+            <p class="small-note">
+                Use the controls to explore detailed diagnostics for one region at a time. For each configuration
+                we show three groups of plots: PR/ROC/reliability, score distributions, and gain &amp; lift curves.
+            </p>
 
-  <!-- Results 摘要 -->
-  <section id="results">
-    <h2>Results (GRU & hazard)</h2>
+            <div class="control-bar">
+                <label>
+                    Region × band
+                    <select id="regionSelect">
+                        <!-- TODO: 把下面这些值改成你真的有图片的 tag，必须和文件名前缀完全一致 -->
+                        <option value="West_Mid" selected>West_Mid</option>
+                        <option value="West_North">West_North</option>
+                        <option value="Coast_Mid">Coast_Mid</option>
+                        <option value="CentralWest_FarNorth">CentralWest_FarNorth</option>
+                        <option value="CentralWest_Mid">CentralWest_Mid</option>
+                        <option value="CentralWest_South">CentralWest_South</option>
+                        <!-- 需要更多地区就继续加 option -->
+                    </select>
+                </label>
 
-    <h3>GRU ignition model</h3>
-    <p>
-      With the spatial prior and a 14-day horizon, the GRU model attains consistently strong,
-      well-calibrated performance across regions. High- and mid-fire areas rank clearly above
-      low-fire regions in calibrated PR-AUC. West_Mid, West_North, and Coast_Mid are among the
-      strongest regions, whereas low-fire areas such as Central_West_South show lower, noisier
-      curves, consistent with scarce positives.
-    </p>
-    <p>
-      Pairing regions one by one at k = 14, adding the prior improves ROC–AUC by roughly
-      0.02–0.03 on average and increases precision in the Top-3% of cells in most regions,
-      yielding cleaner alert lists at the same alert rate. The two horizons behave similarly
-      overall, so we adopt k = 14 as the default and reserve k = 7 for shorter-lead decisions.
-    </p>
-    <p>
-      Using region-specific calibrated operating points, high- and mid-fire regions achieve
-      substantially higher precision than low-fire regions at comparable alert rates, often with
-      lifts of 2–3 relative to their base rates and roughly 2–3 alerts per captured fire.
-      Balanced accuracy remains modest because negatives dominate, but targeted alerting remains
-      strong, and many regions still contain high-yield slices despite the class imbalance.
-    </p>
+                <label>
+                    Horizon k
+                    <select id="horizonSelect">
+                        <option value="7">k = 7 days</option>
+                        <option value="14" selected>k = 14 days</option>
+                    </select>
+                </label>
 
-    <h3>Hazard RNN (post-fire waiting times)</h3>
-    <p>
-      The hazard analysis provides a complementary, time-to-event view of fire dynamics. West_Mid
-      has the highest activity and the fastest re-ignition cycle, with roughly 35% of sites
-      reigniting within 30 days and just over 50% within 60 days. Most other regions cluster
-      lower, around 10–25% by 60 days, indicating less frequent and later re-ignition.
-    </p>
-    <p>
-      Median inter-fire waiting times are consistent with these curves: West_Mid sits at the
-      short end (weeks to a few months), Midwest_Far_North and West_North in the mid range
-      (a few months), and Central_West_North or West_Far_North show very long medians (hundreds
-      of days), characteristic of slow background activity. Together with the GRU model, these
-      patterns suggest that fast-cycling regions can support shorter horizons and higher alert
-      coverage, whereas slow regions warrant more conservative use of alerts.
-    </p>
-  </section>
+                <label>
+                    Prior
+                    <select id="priorSelect">
+                        <option value="with_prior" selected>with spatial prior</option>
+                        <option value="no_prior">no prior</option>
+                    </select>
+                </label>
+            </div>
 
-  <!-- 交互图 1：按 region 的 PR 曲线 -->
-  <section id="gru-pr" class="panel">
-    <div class="panel-header">
-      <h3>Region PR curves (GRU with prior, k = 14)</h3>
-      <a href="gru_pr_curves.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      Each line is a region × latitude band. Legend entries can be toggled on/off to inspect
-      specific regions.
-    </p>
-    <iframe src="gru_pr_curves.html"></iframe>
-  </section>
+            <div class="diag-grid">
+                <figure>
+                    <img id="img-pr-roc" alt="PR, ROC and reliability curves">
+                    <figcaption>PR curve, ROC curve, and reliability diagram for the selected setting.</figcaption>
+                </figure>
 
-  <!-- 交互图 2：全局 summary（PR-AUC / ROC-AUC / base rate） -->
-  <section id="gru-summary" class="panel">
-    <div class="panel-header">
-      <h3>Global GRU summary metrics</h3>
-      <a href="gru_summary.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      Summary table derived from <code>gru.csv</code>, including PR-AUC, ROC-AUC, base rate,
-      Brier score, and sample counts for each region and horizon.
-    </p>
-    <iframe src="gru_summary.html"></iframe>
-  </section>
+                <figure>
+                    <img id="img-score" alt="Score histogram">
+                    <figcaption>Score distribution for negatives vs positives (calibrated scores).</figcaption>
+                </figure>
 
-  <!-- 交互图 3：Operating points（推荐阈值） -->
-  <section id="operating" class="panel">
-    <div class="panel-header">
-      <h3>Region-specific operating points (k = 14, GRU with prior)</h3>
-      <a href="operating_points.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      For each region, we select a calibrated decision threshold (fixed precision target when
-      feasible, otherwise a Top-K rule) and report precision, recall, coverage, and confusion
-      matrix counts.
-    </p>
-    <iframe src="operating_points.html"></iframe>
-  </section>
+                <figure>
+                    <img id="img-gain" alt="Cumulative gain and lift curves">
+                    <figcaption>Cumulative gain and lift curves as we move down the ranked list of cells.</figcaption>
+                </figure>
+            </div>
 
-  <!-- 交互图 4：Delta 表（prior vs no_prior） -->
-  <section id="delta" class="panel">
-    <div class="panel-header">
-      <h3>Gain from adding the spatial prior (Top-3% precision, k = 14)</h3>
-      <a href="delta_top3.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      Comparison between GRU_with_prior and GRU_no_prior at the Top-3% selection, by region.
-      Positive values indicate cleaner alert lists when using the learned ignition prior.
-    </p>
-    <iframe src="delta_top3.html"></iframe>
-  </section>
+            <p class="small-note">
+                The images are loaded directly from pre-computed PNGs in the repository
+                (one set per region, horizon, and prior setting).
+            </p>
+        </div>
+    </section>
 
-  <!-- 交互图 5：Hazard median waiting time -->
-  <section id="haz-wait" class="panel">
-    <div class="panel-header">
-      <h3>Median inter-fire waiting time by region</h3>
-      <a href="hazard_waiting.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      Horizontal bars show the median number of days between consecutive fire episodes in each
-      region. Hover for additional statistics such as the number of intervals and P(T ≤ 30).
-    </p>
-    <iframe src="hazard_waiting.html"></iframe>
-  </section>
+    <!-- Hazard 结果 -->
+    <section id="hazard">
+        <h2>Post-fire hazard (re-ignition) analysis</h2>
+        <p class="small-note">
+            These plots summarise how quickly sites tend to re-ignite after a fire in each region × latitude band.
+        </p>
 
-  <!-- 交互图 6：Hazard 30 / 60 天复燃概率 -->
-  <section id="haz-cum" class="panel">
-    <div class="panel-header">
-      <h3>30- and 60-day re-ignition probability by region</h3>
-      <a href="hazard_cumprob.html" target="_blank">Open full screen ↗</a>
-    </div>
-    <p class="footnote">
-      Bars show the estimated probability that a site reignites within 30 or 60 days after the
-      last fire, summarised from the hazard analysis.
-    </p>
-    <iframe src="hazard_cumprob.html"></iframe>
-  </section>
+        <div class="card-grid-2">
+            <div class="card">
+                <h3>Median inter-fire waiting time</h3>
+                <p>Regions with short medians and high activity form the fast-cycling hazard tier.</p>
+                <iframe class="plot-frame" src="hazard_waiting.html"></iframe>
+            </div>
 
+            <div class="card">
+                <h3>30- and 60-day re-ignition probability</h3>
+                <p>For each region we show the cumulative probability of re-ignition within 30 and 60 days.</p>
+                <iframe class="plot-frame" src="hazard_cumprob.html"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- 下载链接 -->
+    <section id="tables">
+        <h2>Download summary tables</h2>
+        <div class="card">
+            <ul class="downloads">
+                <li><a href="data/gru.csv">gru.csv – GRU summary metrics by region / model / horizon</a></li>
+                <li><a href="data/delta_k14.csv">delta_k14.csv – Top-k precision gain with prior (k=14)</a></li>
+                <li><a href="data/delta_k7.csv">delta_k7.csv – Top-k precision gain with prior (k=7)</a></li>
+                <li><a href="data/operating_k14.csv">operating_k14.csv – k=14 calibrated operating points</a></li>
+                <li><a href="data/operating_k7.csv">operating_k7.csv – k=7 calibrated operating points</a></li>
+                <li><a href="data/hazard.csv">hazard.csv – Post-fire hazard summary by region</a></li>
+            </ul>
+            <p class="small-note">
+                All tables are computed on the held-out test period with strict temporal splits.
+            </p>
+        </div>
+    </section>
 </main>
 
+<footer>
+    AI assistance: large language models were used to help write GRU / hazard-RNN code,
+    generate summary plots, and draft parts of the text on this page. All results were
+    checked and interpreted by the authors.
+</footer>
+
+<script>
+    // ====== 交互选图脚本 ======
+    // 假设所有 PNG 都放在 repo 的 figs/gru_region/ 目录下
+    const IMG_BASE = "figs/gru_region/";
+
+    function updateDiagImages() {
+        const region = document.getElementById("regionSelect").value;
+        const k      = document.getElementById("horizonSelect").value;   // "7" or "14"
+        const prior  = document.getElementById("priorSelect").value;     // "with_prior" / "no_prior"
+
+        // 文件名格式：<Tag>_k7_GRU_with_prior_pr_roc_reliability.png
+        const base = `${region}_k${k}_GRU_${prior}`;
+
+        document.getElementById("img-pr-roc").src =
+            IMG_BASE + base + "_pr_roc_reliability.png";
+
+        document.getElementById("img-score").src =
+            IMG_BASE + base + "_score_hist.png";
+
+        document.getElementById("img-gain").src =
+            IMG_BASE + base + "_gain_lift.png";
+    }
+
+    document.getElementById("regionSelect").addEventListener("change", updateDiagImages);
+    document.getElementById("horizonSelect").addEventListener("change", updateDiagImages);
+    document.getElementById("priorSelect").addEventListener("change", updateDiagImages);
+
+    // 初始加载一次
+    updateDiagImages();
+</script>
 </body>
 </html>
