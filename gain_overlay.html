@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -27,39 +27,33 @@
 <body>
 <div class="wrap">
   <h2>Gain overlay — coverage vs cumulative recall</h2>
-  <p class="muted">从阈值扫描表计算 <em>coverage</em>（alert rate）与 <em>recall</em>，叠加对比多地区；支持 k=7/14，显式多选筛选器。</p>
+  <p class="muted">Computed from threshold sweeps: <em>coverage</em> (alert rate) vs <em>recall</em>. Compare multiple regions; supports <strong>k=7/14</strong>; explicit multi‑select filter.</p>
 
   <div class="bar">
     <label><input type="radio" name="k" value="14" checked> k = 14</label>
     <label><input type="radio" name="k" value="7"> k = 7</label>
-    <label><input type="checkbox" id="diag" checked> 显示对角基线</label>
-    <button class="btn" id="btnAll">全选</button>
-    <button class="btn" id="btnNone">清空</button>
-    <input type="search" id="q" placeholder="搜索地区（Tag）…">
+    <label><input type="checkbox" id="diag" checked> Show diagonal baseline</label>
+    <button class="btn" id="btnAll">Select all</button>
+    <button class="btn" id="btnNone">Clear</button>
+    <input type="search" id="q" placeholder="Search regions (Tag)…">
     <span id="count" class="small"></span>
   </div>
 
   <div class="panel">
     <div class="box">
-      <strong>选择地区（Tag）</strong>
+      <strong>Select regions (Tag)</strong>
       <div id="tags" class="scroll"></div>
     </div>
     <div class="box">
       <div id="chart"></div>
-      <div class="small" id="note">数据来源：data/thresholds_GRU{7,14}.csv（若不存在则回退到 data/threshold_GRU{7,14}.csv）。coverage = (tp+fp)/N；recall = tp/(tp+fn)。</div>
+      <div class="small" id="note">Data: <code>data/thresholds_GRU{7,14}.csv</code> (fallback to <code>data/threshold_GRU{7,14}.csv</code> when missing). coverage = (tp+fp)/N; recall = tp/(tp+fn).</div>
     </div>
   </div>
 </div>
 
 <script>
-const state = {
-  k: 14,
-  rows: [],   // 当前 k 的全部行
-  tags: [],   // 可选 tag 列表
-  selected: new Set(),
-};
+const state = { k: 14, rows: [], tags: [], selected: new Set() };
 
-// 尝试两个文件名：thresholds_GRU{k}.csv → threshold_GRU{k}.csv
 async function loadCSV(k){
   const tryFiles = [`data/thresholds_GRU${k}.csv`, `data/threshold_GRU${k}.csv`];
   for(const path of tryFiles){
@@ -72,15 +66,15 @@ async function loadCSV(k){
       }
     }catch(e){ console.warn('[gain] load failed:', path, e); }
   }
-  throw new Error('未找到阈值 CSV；请确认 data/thresholds_GRU'+k+'.csv 是否存在');
+  throw new Error('CSV not found: data/thresholds_GRU'+k+'.csv');
 }
 
 function computeCoverageRecall(rows){
-  // rows: [{tp,fp,fn,tn,tag, ...}, ...]
   return rows.map(r=>{
-    const N = (r.tp||0)+(r.fp||0)+(r.fn||0)+(r.tn||0);
-    const coverage = N>0 ? ((r.tp||0)+(r.fp||0))/N : NaN;
-    const recall   = ((r.tp||0)+(r.fn||0))>0 ? (r.tp||0)/((r.tp||0)+(r.fn||0)) : NaN;
+    const tp=+r.tp||0, fp=+r.fp||0, fn=+r.fn||0, tn=+r.tn||0;
+    const N = tp+fp+fn+tn;
+    const coverage = N>0 ? (tp+fp)/N : NaN;
+    const recall   = (tp+fn)>0 ? tp/(tp+fn) : NaN;
     return {...r, coverage, recall};
   }).filter(r=>isFinite(r.coverage) && isFinite(r.recall));
 }
@@ -103,16 +97,12 @@ function buildTagUI(){
     box.appendChild(row);
     row.querySelector('input').addEventListener('change', e=>{
       if(e.target.checked) state.selected.add(t); else state.selected.delete(t);
-      draw();
-      updateCount();
+      draw(); updateCount();
     });
   });
   updateCount();
 }
-function updateCount(){
-  const el = document.getElementById('count');
-  el.textContent = `已选 ${state.selected.size} / 共 ${state.tags.length}`;
-}
+function updateCount(){ document.getElementById('count').textContent = `Selected ${state.selected.size} / ${state.tags.length}`; }
 
 function curvesByTag(rows){
   const byTag = new Map();
@@ -123,7 +113,6 @@ function curvesByTag(rows){
   });
   const traces = [];
   for(const [tag, arr] of byTag){
-    // 以 coverage 升序，且去重/去 NaN
     const sorted = arr.filter(d=>isFinite(d.coverage) && isFinite(d.recall))
                       .sort((a,b)=> a.coverage - b.coverage);
     traces.push({
@@ -131,31 +120,21 @@ function curvesByTag(rows){
       y: sorted.map(d=>d.recall),
       mode: 'lines',
       name: tag,
-      hovertemplate: `${tag}<br>coverage=%{x:.2f}<br>recall=%{y:.2f}<extra></extra>`
+      hovertemplate: `${tag}<br>coverage=%{x:.2p}<br>recall=%{y:.2p}<extra></extra>`
     });
   }
   return traces;
 }
 
 function draw(){
-  const rows = state.rows;
-  const traces = curvesByTag(rows);
-
+  const traces = curvesByTag(state.rows);
   if(document.getElementById('diag').checked){
-    traces.unshift({
-      x:[0,1], y:[0,1],
-      mode:'lines',
-      name:'baseline',
-      line:{dash:'dot'},
-      hoverinfo:'skip',
-      showlegend:false
-    });
+    traces.unshift({x:[0,1], y:[0,1], mode:'lines', name:'baseline', line:{dash:'dot'}, hoverinfo:'skip', showlegend:false});
   }
-
   const layout = {
     height: 680,
     margin:{l:80,r:20,t:40,b:80},
-    xaxis:{title:'Coverage (alert rate)', range:[0,1], tickformat:'.0%', tickmode:'auto'},
+    xaxis:{title:'Coverage (alert rate)', range:[0,1], tickformat:'.0%'},
     yaxis:{title:'Cumulative recall', range:[0,1], tickformat:'.0%'},
     legend:{orientation:'h', y:-0.2},
   };
@@ -169,29 +148,18 @@ async function refresh(k){
   const rows = computeCoverageRecall(raw);
   state.rows = rows;
   state.tags = listTags(rows);
-
-  // 默认选前 8 个（避免一上来太挤），你可改成自定义名单
-  state.selected = new Set(state.tags.slice(0,8));
-
-  buildTagUI();
-  draw();
+  state.selected = new Set(state.tags.slice(0,8)); // default few to avoid clutter
+  buildTagUI(); draw();
 }
 
 document.querySelectorAll('input[name="k"]').forEach(r=>{
   r.addEventListener('change', e=> refresh(Number(e.target.value)));
 });
 document.getElementById('diag').addEventListener('change', draw);
-document.getElementById('btnAll').onclick = ()=>{
-  state.selected = new Set(state.tags);
-  buildTagUI(); draw();
-};
-document.getElementById('btnNone').onclick = ()=>{
-  state.selected = new Set();
-  buildTagUI(); draw();
-};
+document.getElementById('btnAll').onclick = ()=>{ state.selected = new Set(state.tags); buildTagUI(); draw(); };
+document.getElementById('btnNone').onclick = ()=>{ state.selected = new Set(); buildTagUI(); draw(); };
 document.getElementById('q').addEventListener('input', buildTagUI);
 
-// 启动
 refresh(14);
 </script>
 </body>
