@@ -1,661 +1,382 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>GRU & Hazard – Wildfire Ignition</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- ========= 简单浅色系样式 ========= -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wildfire | GRU + Hazard RNN — Interactive Report</title>
+  <meta name="description" content="GRU ignition forecasting (k=7/14) with spatial prior + hazard RNN. History-safe features; region × latitude-band diagnostics; interactive summaries." />
   <style>
-    :root {
-      --bg: #f6f8fc;
-      --bg-card: #ffffff;
-      --accent: #2563eb;
-      --accent-soft: #e0ebff;
-      --accent-dark: #1d4ed8;
-      --text-main: #111827;
-      --text-muted: #6b7280;
-      --border-subtle: #e5e7eb;
-      --shadow-soft: 0 16px 40px rgba(15,23,42,0.08);
-      --radius-card: 14px;
+    :root{
+      --bg:#f9fafb; --panel:#ffffff; --ink:#111827; --ink-2:#4b5563; --muted:#9ca3af; --accent:#2563eb; --soft:#e5e7eb;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol"}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    header{
+      position:sticky;top:0;z-index:10;background:rgba(249,250,251,0.92);backdrop-filter:saturate(160%) blur(8px);
+      border-bottom:1px solid var(--soft);
     }
-
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text-main);
-      line-height: 1.6;
-    }
-
-    a {
-      color: var(--accent-dark);
-    }
-
-    /* 顶部 hero */
-
-    .hero {
-      background: radial-gradient(circle at top left, #fca5a5, transparent 55%),
-                  radial-gradient(circle at top right, #fde68a, transparent 55%),
-                  linear-gradient(135deg, #eff6ff, #f9fafb);
-      padding: 32px 24px 20px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .hero-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .hero-title {
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: 0.03em;
-      margin-bottom: 4px;
-    }
-
-    .hero-subtitle {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-    }
-
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(37,99,235,0.06);
-      font-size: 12px;
-      color: var(--accent-dark);
-      border: 1px solid rgba(37,99,235,0.12);
-      margin-bottom: 8px;
-    }
-
-    .hero-pill span.emoji {
-      font-size: 14px;
-    }
-
-    .hero-nav {
-      margin-top: 14px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      font-size: 14px;
-    }
-
-    .hero-nav a {
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #ffffff;
-      border: 1px solid var(--border-subtle);
-      text-decoration: none;
-      color: var(--text-muted);
-    }
-
-    .hero-nav a:hover {
-      border-color: var(--accent);
-      color: var(--accent-dark);
-    }
-
-    /* 主体布局 */
-
-    .page {
-      max-width: 1100px;
-      margin: 20px auto 40px;
-      padding: 0 16px 40px;
-    }
-
-    section {
-      margin-bottom: 32px;
-    }
-
-    h2 {
-      font-size: 22px;
-      margin-bottom: 10px;
-    }
-
-    h3 {
-      font-size: 18px;
-      margin-bottom: 8px;
-    }
-
-    p {
-      margin-bottom: 8px;
-      font-size: 14px;
-    }
-
-    .card {
-      background: var(--bg-card);
-      border-radius: var(--radius-card);
-      box-shadow: var(--shadow-soft);
-      padding: 18px 20px;
-      border: 1px solid rgba(148,163,184,0.25);
-      margin-bottom: 18px;
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-
-    .card-title {
-      font-weight: 600;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .pill {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--accent-dark);
-      border: 1px solid rgba(37,99,235,0.24);
-    }
-
-    .muted {
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    /* iframe 区块 */
-
-    .iframe-row {
-      display: grid;
-      grid-template-columns: minmax(0,1.6fr) minmax(0,1.2fr);
-      gap: 16px;
-    }
-
-    .iframe-row iframe,
-    .iframe-full iframe {
-      width: 100%;
-      height: 380px;
-      border-radius: 12px;
-      border: 1px solid var(--border-subtle);
-      background: #fff;
-    }
-
-    .iframe-full iframe {
-      height: 420px;
-    }
-
-    @media (max-width: 900px) {
-      .iframe-row {
-        grid-template-columns: 1fr;
-      }
-      .iframe-row iframe,
-      .iframe-full iframe {
-        height: 320px;
-      }
-    }
-
+    .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+    .nav{display:flex;align-items:center;justify-content:space-between;height:56px}
+    .nav h1{font-size:18px;margin:0}
+    .nav ul{list-style:none;margin:0;padding:0;display:flex;gap:14px}
+    .nav li a{display:inline-block;padding:6px 8px;border-radius:8px}
+    .nav li a:hover{background:#eef2ff}
+    section{padding:22px 0;border-top:1px solid var(--soft)}
+    h2{margin:0 0 12px 0;font-size:24px}
+    h3{margin:0 0 10px 0;font-size:20px}
+    .muted{color:var(--ink-2)}
+    .small{font-size:12px;color:var(--muted)}
+    .hero{padding:26px 0 8px 0}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid var(--soft);border-radius:999px;font-size:12px;margin-right:6px;background:#fff}
+    .grid{display:grid;gap:14px}
+    .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (max-width:980px){.grid.cols-2{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid var(--soft);border-radius:12px;padding:12px; position:relative;}
+    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .card-title{font-weight:600}
+    .iframe-full iframe{width:100%;height:520px;border:0;border-radius:8px;background:#fff}
+    /* actions on cards */
+    .actions{position:absolute; top:8px; right:10px; display:flex; gap:6px}
+    .actions button, .actions a{font-size:12px; padding:4px 8px; border:1px solid var(--soft); border-radius:8px; background:#fff; color:#111827; text-decoration:none}
     /* per-region viewer */
-
-    .viewer-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 18px;
-      margin-bottom: 12px;
-      align-items: center;
-      font-size: 14px;
-    }
-
-    .control-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    select {
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--border-subtle);
-      background: #ffffff;
-      font-size: 13px;
-      color: var(--text-main);
-    }
-
-    select:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(37,99,235,0.25);
-    }
-
-    .viewer-grid {
-      display: grid;
-      grid-template-columns: minmax(0,1.4fr) minmax(0,1.1fr);
-      gap: 14px;
-      margin-top: 6px;
-    }
-
-    .viewer-item {
-      background: #f9fafb;
-      border-radius: 12px;
-      padding: 10px 10px 14px;
-      border: 1px solid #e5e7eb;
-    }
-
-    .viewer-item h4 {
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
-
-    .viewer-item p {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    .viewer-item img {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      display: block;
-      background: #fff;
-    }
-
-    @media (max-width: 900px) {
-      .viewer-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* 小提示 */
-
-    .note {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
+    .controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:8px 0 14px 0}
+    @media (max-width:980px){.controls{grid-template-columns:1fr 1fr}}
+    label{font-size:12px;color:var(--ink-2);display:block;margin-bottom:6px}
+    select{width:100%;padding:10px;border:1px solid var(--soft);border-radius:10px;background:#fff}
+    .img-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    @media (max-width:980px){.img-panel{grid-template-columns:1fr}}
+    .imgbox{background:var(--panel);border:1px solid var(--soft);border-radius:12px;padding:8px;text-align:center}
+    .imgbox img{max-width:100%;height:auto;border-radius:8px}
+    footer{padding:22px 0;color:var(--muted)}
+    /* fullscreen overlay for iframes */
+    #fsPanel{ position:fixed; inset:0; background:rgba(0,0,0,.75); display:none;
+      align-items:center; justify-content:center; z-index:9999; }
+    #fsPanel .frame{ width:95vw; height:90vh; background:#fff; border-radius:10px; border:0; }
+    #fsPanel .close{ position:absolute; top:14px; right:18px; padding:6px 10px; background:#fff; border-radius:8px; border:1px solid var(--soft); }
   </style>
 </head>
-
 <body>
+<header>
+  <div class="wrap nav">
+    <h1>Wildfire — GRU + Hazard RNN</h1>
+    <nav>
+      <ul>
+        <li><a href="#findings">Main findings</a></li>
+        <li><a href="#viewer">Per‑region</a></li>
+        <li><a href="#interactive">Interactive</a></li>
+        <li><a href="#methods">Methods</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
 
-  <!-- ================= Hero 头部 ================= -->
-  <header class="hero">
-    <div class="hero-inner">
-      <div class="hero-pill">
-        <span class="emoji">🔥</span>
-        <span>GRU ignition model & post-fire hazard</span>
+<main class="wrap">
+  <!-- ===== 1) Main findings (moved to top) ===== -->
+  <section class="hero" id="findings">
+    <h2>Main findings</h2>
+    <p class="muted">
+      日尺度格点（10–15 km²），history‑safe 特征；GRU 预测 <span class="pill">k=7</span><span class="pill">k=14</span> 天内是否出现新火；
+      学到的 spatial ignition prior 作为时变特征；post‑fire re‑ignition 用离散时间 hazard。
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">整体表现</div></div>
+        <ul class="muted">
+          <li>k=14 + prior 在多数 region 上校准良好；PR-AUC、gain 曲线在中/高火区明显优于低火区。</li>
+          <li>典型强区：West_Mid, West_North, Coast_Mid, CentralWest_Mid+South_COMBINED。</li>
+          <li>弱区：CentralWest_South, Midwest_South 等低火区，precision 较低且曲线更 noisy。</li>
+        </ul>
       </div>
-      <h1 class="hero-title">Short-term wildfire ignition & re-ignition</h1>
-      <p class="hero-subtitle">
-        Region-specific GRU forecasts with a learned spatial prior, combined with a hazard-style
-        analysis of time to re-ignition.
-      </p>
-
-      <nav class="hero-nav">
-        <a href="#summary">Overview</a>
-        <a href="#interactive">Interactive summaries</a>
-        <a href="#viewer">Per-region diagnostics</a>
-        <a href="#methods">Methods</a>
-      </nav>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Prior 的增益</div></div>
+        <ul class="muted">
+          <li>k=14：with_prior 相比 no_prior，ROC-AUC 平均 +0.02 ~ +0.03。</li>
+          <li>Top‑3% precision 在大多数 region 提升 0.03–0.08（少数略降）。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Top‑3%（k=14, with_prior）</div></div>
+        <ul class="muted">
+          <li>全区域中位 precision ≈ 0.36；≈42% 的地区 ≥ 0.40；≈29% 的地区 ≥ 0.50。</li>
+          <li>在极度不平衡下，很多 region 的 top slice 仍具备较高收益。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Operating points</div></div>
+        <ul class="muted">
+          <li>k=14, with_prior，区域特定阈值（目标 ≈30% precision）。</li>
+          <li>中/高火区 precision ~ 0.30–0.45；lift 通常 1.5–3× base。</li>
+          <li>alerts_per_fire 多数地区 2–3 条/火；balanced accuracy ~ 0.55–0.65。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">k=7 vs k=14</div></div>
+        <ul class="muted">
+          <li>ROC‑AUC 高度相关，平均差很小（k=14 略低）；k=14 作为主 horizon，k=7 供短期决策/鲁棒性检验。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Hazard（再点燃）</div></div>
+        <ul class="muted">
+          <li>West_Mid：P(T≤30) ≈ 0.35，P(T≤60) ≈ 0.51，re‑ignition 快；多数其他地区 P(T≤60) 约 0.10–0.25。</li>
+          <li>由此划分 fast / mid / slow hazard tiers：快区可较高覆盖率，慢区适合较低 alert rate 与更长冷却期。</li>
+        </ul>
+      </div>
     </div>
-  </header>
+  </section>
 
-  <main class="page">
+  <!-- ===== 2) Per‑region diagnostics viewer ===== -->
+  <section id="viewer">
+    <h2>Per‑region diagnostics viewer</h2>
+    <p class="muted">选择 region、lat band、horizon、是否使用 spatial prior；自动加载三张诊断图：PR/ROC/校准、score 分布、gain & lift。</p>
 
-    <!-- ================= Overview ================= -->
-    <section id="summary">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>High-level findings</span>
-            <span class="pill">GRU + hazard RNN</span>
-          </div>
-        </div>
-        <p>
-          With a 14-day horizon and a learned ignition prior, the GRU model achieves
-          consistent calibrated performance across regions. High- and mid-fire regions
-          sit clearly above low-fire regions in calibrated PR-AUC and gain curves.
-          Adding the spatial prior improves ROC-AUC by about 0.02–0.03 on average and
-          typically raises Top-3% precision by 0.03–0.08, yielding cleaner, more
-          targeted alert lists.
-        </p>
-        <p>
-          The post-fire hazard analysis provides a complementary time-to-event view.
-          Fast-cycling regions such as <em>West_Mid</em> have around 35% probability of
-          re-ignition within 30 days and just over 50% within 60 days, while most other
-          regions cluster around 10–25% by 60 days. These patterns motivate using higher
-          alert coverage and shorter horizons in fast-cycling bands, and more conservative
-          alerting in slow-cycling regions.
-        </p>
+    <div class="controls">
+      <div>
+        <label for="region">Region</label>
+        <select id="region"></select>
       </div>
-    </section>
+      <div>
+        <label for="lat">Lat zone</label>
+        <select id="lat"></select>
+      </div>
+      <div>
+        <label for="k">Horizon k</label>
+        <select id="k">
+          <option value="7">7</option>
+          <option value="14" selected>14</option>
+        </select>
+      </div>
+      <div>
+        <label for="prior">Prior</label>
+        <select id="prior">
+          <option value="with_prior" selected>with spatial prior</option>
+          <option value="no_prior">no prior</option>
+        </select>
+      </div>
+    </div>
 
-    <!-- ================= Interactive summaries (Plotly iframes) ================= -->
-    <section id="interactive">
-      <h2>Interactive summaries</h2>
+    <div class="small" id="hint"></div>
 
+    <div class="img-panel">
+      <div class="imgbox">
+        <img id="imgA" alt="PR/ROC/Calibration plot" onerror="this.alt='找不到图片（PR/ROC/Calibration）'; this.style.opacity=0.5;">
+        <div class="small">PR‑ROC‑Reliability</div>
+      </div>
+      <div class="imgbox">
+        <img id="imgB" alt="Score histogram" onerror="this.alt='找不到图片（score histogram）'; this.style.opacity=0.5;">
+        <div class="small">Score histogram</div>
+      </div>
+      <div class="imgbox">
+        <img id="imgC" alt="Gain & Lift curves" onerror="this.alt='找不到图片（gain & lift）'; this.style.opacity=0.5;">
+        <div class="small">Gain & lift</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3) Interactive summaries (moved after viewer; now 7 cards) ===== -->
+  <section id="interactive">
+    <h2>Interactive summaries</h2>
+    <div class="grid cols-2">
       <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>Global GRU performance</span>
-          </div>
-          <span class="muted">Hover to inspect individual regions</span>
-        </div>
-
-        <div class="iframe-row">
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">Precision–recall curves by region</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              Overlay of calibrated PR curves for all regions at horizon k = 14 (with spatial prior).
-              Use the legend to toggle individual bands.
-            </p>
-            <iframe src="gru_pr_curves.html" loading="lazy"></iframe>
-          </div>
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">Summary metrics (PR-AUC, ROC-AUC, base rates)</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              Table-style view summarizing GRU performance per region and horizon.
-            </p>
-            <iframe src="gru_summary.html" loading="lazy"></iframe>
-          </div>
-        </div>
+        <div class="actions"><button type="button" data-fs="gru_pr_curves.html">🔎 放大</button><a target="_blank" rel="noopener" href="gru_pr_curves.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">PR overlays（k=14, with prior）</div></div>
+        <div class="iframe-full"><iframe src="gru_pr_curves.html" title="PR overlays (k=14 with prior)"></iframe></div>
       </div>
 
       <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>Operating points & prior gains</span>
-          </div>
-        </div>
-        <div class="iframe-row">
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">Recommended operating points (k = 14, with prior)</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              For each region we choose thresholds that roughly target 30% precision
-              or a Top-K rule, and report the resulting alert rates, recall, and lift.
-            </p>
-            <iframe src="operating_points.html" loading="lazy"></iframe>
-          </div>
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">Top-3% precision gains from the spatial prior</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              Comparison of Top-3% precision with and without the learned ignition prior,
-              at horizon k = 7 and k = 14.
-            </p>
-            <iframe src="delta_top3.html" loading="lazy"></iframe>
-          </div>
-        </div>
+        <div class="actions"><button type="button" data-fs="gru_summary.html">🔎 放大</button><a target="_blank" rel="noopener" href="gru_summary.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Summary metrics（PR‑AUC / ROC‑AUC / base）</div></div>
+        <div class="iframe-full"><iframe src="gru_summary.html" title="GRU summary table & charts"></iframe></div>
       </div>
 
       <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>Post-fire hazard summaries</span>
-          </div>
-        </div>
-        <div class="iframe-row">
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">Median inter-fire waiting time</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              Regions are sorted from shortest to longest median gap between fires.
-            </p>
-            <iframe src="hazard_waiting.html" loading="lazy"></iframe>
-          </div>
-          <div>
-            <h3 style="font-size:14px;margin-bottom:4px;">30- and 60-day re-ignition probability</h3>
-            <p class="muted" style="margin-bottom:6px;">
-              Cumulative probability that a site reignites within 30 or 60 days
-              after the last fire.
-            </p>
-            <iframe src="hazard_cumprob.html" loading="lazy"></iframe>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= Per-region diagnostics viewer ================= -->
-    <section id="viewer">
-      <h2>Per-region diagnostics viewer</h2>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>Explore diagnostics for one region × latitude band</span>
-          </div>
-        </div>
-        <p class="muted" style="margin-bottom:10px;">
-          Use the controls below to select a region, latitude band, forecast horizon, and
-          whether the GRU uses the spatial ignition prior. For each configuration we display
-          three sets of plots: PR/ROC/reliability curves, score distributions, and cumulative
-          gain &amp; lift curves. Images are loaded from pre-computed PNGs in the repository
-          (<code>figs/gru_region/</code>).
-        </p>
-
-        <div class="viewer-controls">
-          <div class="control-group">
-            <span>Region:</span>
-            <select id="regionSelect"></select>
-          </div>
-
-          <div class="control-group">
-            <span>Lat&nbsp;zone:</span>
-            <select id="latSelect"></select>
-          </div>
-
-          <div class="control-group">
-            <span>Horizon k:</span>
-            <select id="kSelect">
-              <option value="7">k = 7 days</option>
-              <option value="14" selected>k = 14 days</option>
-            </select>
-          </div>
-
-          <div class="control-group">
-            <span>Prior:</span>
-            <select id="priorSelect">
-              <option value="with_prior" selected>with spatial prior</option>
-              <option value="no_prior">no prior</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="viewer-grid">
-          <div class="viewer-item">
-            <h4>PR, ROC and reliability curves</h4>
-            <p>PR curve, ROC curve, and reliability diagram for the selected configuration.</p>
-            <img id="imgPrRoc" src="" alt="PR / ROC / reliability curves" />
-          </div>
-
-          <div class="viewer-item">
-            <h4>Score histogram</h4>
-            <p>Score distribution for negatives vs positives (calibrated scores).</p>
-            <img id="imgHist" src="" alt="Score histogram" />
-          </div>
-
-          <div class="viewer-item" style="grid-column: 1 / -1;">
-            <h4>Cumulative gain and lift curves</h4>
-            <p>Cumulative gain and lift as we move down the ranked list of cells.</p>
-            <img id="imgGainLift" src="" alt="Gain and lift curves" />
-          </div>
-        </div>
-
-        <p class="note">
-          File naming convention expected by the viewer:
-          <code>&lt;Tag&gt;_k7_GRU_with_prior_pr_roc_reliability.png</code>,
-          <code>&lt;Tag&gt;_k7_GRU_with_prior_score_hist.png</code>,
-          <code>&lt;Tag&gt;_k7_GRU_with_prior_gain_lift.png</code>, and similarly for
-          <code>k14</code> and <code>no_prior</code>. The <code>&lt;Tag&gt;</code> values are
-          specified in the JavaScript configuration below.
-        </p>
-      </div>
-    </section>
-
-    <!-- ================= Methods (简短版) ================= -->
-    <section id="methods">
-      <h2>Methods (summary)</h2>
-
-      <div class="card">
-        <h3>Time-series setup & ignition model</h3>
-        <p>
-          We work on a 10–15 km grid so that fires can be tracked at fixed sites. Each cell has its
-          own daily time series with a wildfire indicator in {0,1} and gridded weather and fuel
-          covariates, all restricted to information available on or before day <em>t</em>. For each
-          site-day we construct history-safe predictors such as 1-day lags, 7–30 day rolling means,
-          totals and extremes, and a 30-day “dryness” counter (days without rain). Because some
-          region–latitude bands contain very few fires, we analyse each band separately and also
-          report results for three pooled “combined” bands to stabilise estimates.
-        </p>
-        <p>
-          To obtain a learned ignition prior, we train a CatBoost classifier in an expanding-window
-          fashion: earlier years predict later years, and we compute an out-of-fold ignition
-          probability for each grid-day. From this we derive summary features (logit of the prior,
-          within-day rank among cells, short lags, 7-day rolling summaries), which are concatenated
-          with the physical covariates and fed into a single-layer GRU. The GRU predicts the
-          probability that at least one new fire occurs in the next <em>k</em> days (k = 7 or 14)
-          using the previous 28 days of features; we use strict temporal splits by label year and
-          optimise a weighted cross-entropy loss with early stopping on validation PR-AUC. Final
-          probabilities are temperature-scaled for calibration.
-        </p>
+        <div class="actions"><button type="button" data-fs="operating_points.html">🔎 放大</button><a target="_blank" rel="noopener" href="operating_points.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Operating points（k=14 & k=7）</div></div>
+        <div class="iframe-full"><iframe src="operating_points.html" title="Operating points"></iframe></div>
       </div>
 
       <div class="card">
-        <h3>Post-fire hazard analysis</h3>
-        <p>
-          For the hazard RNN, we merge ignitions within a D = 3 day cooldown window into single
-          events, compute waiting times between episodes, and right-censor gaps beyond 60 days. We
-          then estimate discrete-time hazards and survival curves for each region × latitude band,
-          yielding cumulative re-ignition probabilities P(T ≤ d) and summary statistics such as
-          median gaps and probability of re-ignition within 7, 14, 30, and 60 days. These estimates
-          are used to define fast-, mid-, and slow-cycling hazard tiers and to interpret GRU
-          operating points in terms of local re-ignition dynamics.
-        </p>
+        <div class="actions"><button type="button" data-fs="delta_top3.html">🔎 放大</button><a target="_blank" rel="noopener" href="delta_top3.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Top‑3% precision gains（with vs no prior）</div></div>
+        <div class="iframe-full"><iframe src="delta_top3.html" title="Top-3% precision gain"></iframe></div>
       </div>
-    </section>
 
-  </main>
+      <div class="card">
+        <div class="actions"><button type="button" data-fs="gain_overlay.html">🔎 放大</button><a target="_blank" rel="noopener" href="gain_overlay.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Gain overlay — coverage vs recall</div></div>
+        <div class="iframe-full"><iframe src="gain_overlay.html" title="Gain overlay — coverage vs recall"></iframe></div>
+      </div>
 
-  <!-- ================= JS：Region / Lat zone 选择 & 图片切换 ================= -->
-  <script>
-    // 配置：region + lat_zone + tag（tag 用来拼图片文件名）
-    // 这里先列出常用的一些；你可以按需要补全。
-    const REGION_LAT_CONFIG = [
-      { tag: "West_Mid",              region: "West",          lat: "Mid" },
-      { tag: "West_North",            region: "West",          lat: "North" },
-      { tag: "West_FarNorth",         region: "West",          lat: "Far North" },
+      <div class="card">
+        <div class="actions"><button type="button" data-fs="hazard_waiting.html">🔎 放大</button><a target="_blank" rel="noopener" href="hazard_waiting.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Median inter‑fire waiting time</div></div>
+        <div class="iframe-full"><iframe src="hazard_waiting.html" title="Median waiting time"></iframe></div>
+      </div>
 
-      { tag: "Coast_Mid",             region: "Coast",         lat: "Mid" },
-      { tag: "Coast_North",           region: "Coast",         lat: "North" },
-      { tag: "Coast_South",           region: "Coast",         lat: "South" },
-      { tag: "Coast_FarNorth",        region: "Coast",         lat: "Far North" },
+      <div class="card">
+        <div class="actions"><button type="button" data-fs="hazard_cumprob.html">🔎 放大</button><a target="_blank" rel="noopener" href="hazard_cumprob.html">↗ 新标签</a></div>
+        <div class="card-header"><div class="card-title">Re‑ignition probability ≤ 30/60 days</div></div>
+        <div class="iframe-full"><iframe src="hazard_cumprob.html" title="Cumulative re-ignition probability"></iframe></div>
+      </div>
+    </div>
+    <p class="small">若 iframe 未显示，请确认这些 HTML 位于仓库根目录并与本页同源（GitHub Pages 自动满足）。</p>
+  </section>
 
-      { tag: "East_Mid",              region: "East",          lat: "Mid" },
-      { tag: "East_North",            region: "East",          lat: "North" },
-      { tag: "East_South",            region: "East",          lat: "South" },
-      { tag: "East_FarNorth",         region: "East",          lat: "Far North" },
-      { tag: "East_NorthBand",        region: "East",          lat: "NorthBand (combined)" },
+  <!-- ===== 4) Methods (summary) ===== -->
+  <section id="methods">
+    <h2>Methods（summary）</h2>
+    <div class="card">
+      <ul>
+        <li>数据：固定格点（10–15 km²），每日 wildfire 指标 ∈{0,1} + 同日物理 covariates（天气、fuel），全量 features 均 history‑safe。</li>
+        <li>特征：1 日滞后；7–30 日滚动均值/和/极值；30 日无雨计数；CatBoost ignition prior 及其衍生（logit、rank、短期 lag、7 日滚动）。</li>
+        <li>时序：expanding window（2013–2021 训练，2022 验证，2023–2025 测试）；跨年边界 ±7 天移除；验证集做温度校准（temperature scaling）。</li>
+        <li>GRU：单层 + sigmoid；目标 <code>y_t^k = 1{火出现在 [t+1,t+k]}</code>；损失 weighted BCE；early stopping 以 PR‑AUC。</li>
+        <li>评价：PR/ROC、Brier & BSS、reliability、gain/lift；两类决策：固定 precision（如 30%）或 Top‑K（0.1–0.2% 网格）。</li>
+        <li>Hazard：3 天并窗（episode）；离散时间 risk set（region × lat_zone pooling）；输出 <code>h(t), S(t), P(T≤·)</code> 与 tier 对比。</li>
+      </ul>
+      <p class="small">注：校准在 2022 上拟合（temperature scaling），在 2023–2025 上评估；
+      <code>alerts_per_fire</code> 定义为捕获一场火所需 alerts 条数（= 1 / recall 在所选覆盖率下的近似）。</p>
+    </div>
+  </section>
 
-      { tag: "NorthEast_North",       region: "NorthEast",     lat: "North" },
-      { tag: "NorthEast_FarNorth",    region: "NorthEast",     lat: "Far North" },
-      { tag: "NorthEast_NorthBand",   region: "NorthEast",     lat: "NorthBand (combined)" },
+  <footer>
+    <p>Built for sta160‑wildfire · 静态文件即可部署于 GitHub Pages</p>
+  </footer>
+</main>
 
-      { tag: "Midwest_Mid",           region: "Midwest",       lat: "Mid" },
-      { tag: "Midwest_North",         region: "Midwest",       lat: "North" },
-      { tag: "Midwest_South",         region: "Midwest",       lat: "South" },
-      { tag: "Midwest_FarNorth",      region: "Midwest",       lat: "Far North" },
+<!-- fullscreen overlay panel -->
+<div id="fsPanel">
+  <button class="close">关闭 Esc</button>
+  <iframe class="frame"></iframe>
+</div>
 
-      { tag: "CentralWest_Mid",       region: "Central West",  lat: "Mid" },
-      { tag: "CentralWest_North",     region: "Central West",  lat: "North" },
-      { tag: "CentralWest_South",     region: "Central West",  lat: "South" },
-      { tag: "CentralWest_FarNorth",  region: "Central West",  lat: "Far North" },
-      { tag: "CentralWest_Mid+South_COMBINED", region: "Central West", lat: "Mid+South (combined)" }
-    ];
+<noscript>需要启用 JavaScript 以使用 per‑region 诊断浏览器与放大功能。</noscript>
 
-    const regionSelect = document.getElementById("regionSelect");
-    const latSelect    = document.getElementById("latSelect");
-    const kSelect      = document.getElementById("kSelect");
-    const priorSelect  = document.getElementById("priorSelect");
+<script>
+/* ========== 1) REGION / LAT config（与你仓库目录一致） ========== */
+const REGION_LAT_CONFIG = [
+  // CentralWest
+  {tag:"CentralWest_FarNorth", region:"CentralWest", lat:"FarNorth"},
+  {tag:"CentralWest_Mid", region:"CentralWest", lat:"Mid"},
+  {tag:"CentralWest_Mid+South_COMBINED", region:"CentralWest", lat:"Mid+South_COMBINED"},
+  {tag:"CentralWest_North", region:"CentralWest", lat:"North"},
+  {tag:"CentralWest_South", region:"CentralWest", lat:"South"},
 
-    const imgPrRoc    = document.getElementById("imgPrRoc");
-    const imgHist     = document.getElementById("imgHist");
-    const imgGainLift = document.getElementById("imgGainLift");
+  // Coast
+  {tag:"Coast_FarNorth", region:"Coast", lat:"FarNorth"},
+  {tag:"Coast_Mid", region:"Coast", lat:"Mid"},
+  {tag:"Coast_North", region:"Coast", lat:"North"},
+  {tag:"Coast_South", region:"Coast", lat:"South"},
 
-    // 填充 Region 下拉框
-    const uniqueRegions = [...new Set(REGION_LAT_CONFIG.map(d => d.region))].sort();
-    uniqueRegions.forEach(r => {
-      const opt = document.createElement("option");
-      opt.value = r;
-      opt.textContent = r;
-      regionSelect.appendChild(opt);
-    });
+  // East
+  {tag:"East_FarNorth", region:"East", lat:"FarNorth"},
+  {tag:"East_Mid", region:"East", lat:"Mid"},
+  {tag:"East_North", region:"East", lat:"North"},
+  {tag:"East_NorthBand_COMBINED", region:"East", lat:"NorthBand_COMBINED"},
+  {tag:"East_South", region:"East", lat:"South"},
 
-    // 根据 Region 更新 Lat zone 下拉框
-    function updateLatOptions() {
-      const region = regionSelect.value;
-      latSelect.innerHTML = "";
-      const lats = REGION_LAT_CONFIG
-        .filter(d => d.region === region)
-        .map(d => d.lat);
-      const uniqueLats = [...new Set(lats)];
-      uniqueLats.forEach(l => {
-        const opt = document.createElement("option");
-        opt.value = l;
-        opt.textContent = l;
-        latSelect.appendChild(opt);
-      });
-    }
+  // Midwest
+  {tag:"Midwest_FarNorth", region:"Midwest", lat:"FarNorth"},
+  {tag:"Midwest_Mid", region:"Midwest", lat:"Mid"},
+  {tag:"Midwest_North", region:"Midwest", lat:"North"},
+  {tag:"Midwest_South", region:"Midwest", lat:"South"},
 
-    // 根据 region + lat 找到 tag
-    function currentTag() {
-      const region = regionSelect.value;
-      const lat    = latSelect.value;
-      const entry = REGION_LAT_CONFIG.find(
-        d => d.region === region && d.lat === lat
-      );
-      return entry ? entry.tag : null;
-    }
+  // NorthEast
+  {tag:"NorthEast_FarNorth", region:"NorthEast", lat:"FarNorth"},
+  {tag:"NorthEast_North", region:"NorthEast", lat:"North"},
+  {tag:"NorthEast_NorthBand_COMBINED", region:"NorthEast", lat:"NorthBand_COMBINED"},
 
-    // 更新三张图片地址
-    function updateImages() {
-      const tag = currentTag();
-      const k = kSelect.value;               // "7" 或 "14"
-      const prior = priorSelect.value;       // "with_prior" / "no_prior"
+  // West
+  {tag:"West_FarNorth", region:"West", lat:"FarNorth"},
+  {tag:"West_Mid", region:"West", lat:"Mid"},
+  {tag:"West_North", region:"West", lat:"North"}
+];
 
-      if (!tag) {
-        imgPrRoc.alt    = "No configuration found";
-        imgHist.alt     = "No configuration found";
-        imgGainLift.alt = "No configuration found";
-        imgPrRoc.src = imgHist.src = imgGainLift.src = "";
-        return;
-      }
+/* ========== 2) 下拉填充与图片路径 fallback 逻辑 ========== */
+const selRegion = document.getElementById('region');
+const selLat    = document.getElementById('lat');
+const selK      = document.getElementById('k');
+const selPrior  = document.getElementById('prior');
+const hint      = document.getElementById('hint');
 
-      const basePath = "figs/gru_region/";
-      imgPrRoc.src    = `${basePath}${tag}_k${k}_GRU_${prior}_pr_roc_reliability.png`;
-      imgHist.src     = `${basePath}${tag}_k${k}_GRU_${prior}_score_hist.png`;
-      imgGainLift.src = `${basePath}${tag}_k${k}_GRU_${prior}_gain_lift.png`;
-    }
+function unique(arr){ return [...new Set(arr)]; }
+function regions(){ return unique(REGION_LAT_CONFIG.map(x=>x.region)).sort(); }
+function latsOf(region){ return REGION_LAT_CONFIG.filter(x=>x.region===region).map(x=>x.lat); }
+function tagOf(region, lat){ const item = REGION_LAT_CONFIG.find(x=>x.region===region && x.lat===lat); return item ? item.tag : null; }
 
-    // 事件绑定
-    regionSelect.addEventListener("change", () => {
-      updateLatOptions();
-      updateImages();
-    });
+function fillRegions(){
+  selRegion.innerHTML = regions().map(r=>`<option value="${r}">${r}</option>`).join('');
+}
+function fillLats(){
+  const r = selRegion.value;
+  const lats = unique(latsOf(r));
+  selLat.innerHTML = lats.map(l=>`<option value="${l}">${l}</option>`).join('');
+}
 
-    latSelect.addEventListener("change", updateImages);
-    kSelect.addEventListener("change", updateImages);
-    priorSelect.addEventListener("change", updateImages);
+// 尝试多种路径/命名（平铺、嵌套、空格/合并带变体）
+function buildCandidates(tag, k, pr, plot){
+  const flat   = `figs/gru_region/${tag}_k${k}_GRU_${pr}_${plot}.png`;
+  const nested = `figs/gru_region/${tag}/figs/${tag}_k${k}_GRU_${pr}_${plot}.png`;
 
-    // 初始状态：选第一个 region & lat
-    if (uniqueRegions.length > 0) {
-      regionSelect.value = uniqueRegions[0];
-      updateLatOptions();
-      updateImages();
-    }
-  </script>
+  const tagSpace = tag.replace('FarNorth','Far North');
+  const flatSpace   = `figs/gru_region/${tagSpace}_k${k}_GRU_${pr}_${plot}.png`;
+  const nestedSpace = `figs/gru_region/${tagSpace}/figs/${tagSpace}_k${k}_GRU_${pr}_${plot}.png`;
+
+  const tagBand = tag.replace('_NorthBand_COMBINED','_NorthBand');
+  const flatBand   = `figs/gru_region/${tagBand}_k${k}_GRU_${pr}_${plot}.png`;
+  const nestedBand = `figs/gru_region/${tagBand}/figs/${tagBand}_k${k}_GRU_${pr}_${plot}.png`;
+
+  return [flat, nested, flatSpace, nestedSpace, flatBand, nestedBand];
+}
+function setWithFallback(img, urls){
+  if(!urls.length){ img.alt='找不到图片'; img.style.opacity=0.5; return; }
+  const url = urls.shift();
+  img.onerror = ()=>{ setWithFallback(img, urls); };
+  console.log('[viewer] try:', url);
+  img.src = url;
+}
+function updateImages(){
+  const tag = tagOf(selRegion.value, selLat.value);
+  const k   = selK.value;
+  const pr  = selPrior.value;
+  const plots = ['pr_roc_reliability','score_hist','gain_lift'];
+  const ids   = ['imgA','imgB','imgC'];
+  plots.forEach((plot, i)=>{
+    const urls = buildCandidates(tag, k, pr, plot);
+    setWithFallback(document.getElementById(ids[i]), urls);
+  });
+  hint.textContent = `当前：${tag} · k=${k} · ${pr}（自动多路径匹配）`;
+}
+
+// 初始化默认项
+fillRegions();
+selRegion.value = "West";
+fillLats();
+selLat.value = "Mid";
+updateImages();
+
+[selRegion, selLat, selK, selPrior].forEach(el=>{
+  el.addEventListener('change', ()=>{
+    if(el===selRegion){ fillLats(); }
+    updateImages();
+  });
+});
+
+/* ========== 3) 交互卡片：放大/新标签打开 ========== */
+(function(){
+  const panel = document.getElementById('fsPanel');
+  const frame = panel.querySelector('.frame');
+  function openFs(src){ frame.src = src; panel.style.display='flex'; }
+  function closeFs(){ frame.src='about:blank'; panel.style.display='none'; }
+  panel.querySelector('.close').onclick = closeFs;
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFs(); });
+
+  document.querySelectorAll('.actions [data-fs]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openFs(btn.getAttribute('data-fs')));
+  });
+})();
+</script>
 </body>
 </html>

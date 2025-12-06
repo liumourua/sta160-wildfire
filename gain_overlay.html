@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gain overlay — coverage vs cumulative recall</title>
+<link rel="preconnect" href="https://cdn.plot.ly">
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  body{margin:0;padding:16px;background:#f9fafb;color:#111827;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:1200px;margin:0 auto}
+  h2{margin:0 0 8px 0;font-size:22px}
+  .muted{color:#6b7280;font-size:14px;margin:0 0 12px 0}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px 0;align-items:center}
+  .bar input[type="search"]{padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;min-width:240px;background:#fff}
+  .btn{font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer}
+  .panel{display:grid;grid-template-columns:280px 1fr;gap:12px}
+  @media (max-width:980px){.panel{grid-template-columns:1fr}}
+  .box{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px}
+  .scroll{max-height:420px;overflow:auto;display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px}
+  label{font-size:14px;display:flex;gap:8px;align-items:center}
+  #chart{height:680px}
+  .small{color:#9ca3af;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>Gain overlay — coverage vs cumulative recall</h2>
+  <p class="muted">从阈值扫描表计算 <em>coverage</em>（alert rate）与 <em>recall</em>，叠加对比多地区；支持 k=7/14，显式多选筛选器。</p>
+
+  <div class="bar">
+    <label><input type="radio" name="k" value="14" checked> k = 14</label>
+    <label><input type="radio" name="k" value="7"> k = 7</label>
+    <label><input type="checkbox" id="diag" checked> 显示对角基线</label>
+    <button class="btn" id="btnAll">全选</button>
+    <button class="btn" id="btnNone">清空</button>
+    <input type="search" id="q" placeholder="搜索地区（Tag）…">
+    <span id="count" class="small"></span>
+  </div>
+
+  <div class="panel">
+    <div class="box">
+      <strong>选择地区（Tag）</strong>
+      <div id="tags" class="scroll"></div>
+    </div>
+    <div class="box">
+      <div id="chart"></div>
+      <div class="small" id="note">数据来源：data/thresholds_GRU{7,14}.csv（若不存在则回退到 data/threshold_GRU{7,14}.csv）。coverage = (tp+fp)/N；recall = tp/(tp+fn)。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const state = {
+  k: 14,
+  rows: [],   // 当前 k 的全部行
+  tags: [],   // 可选 tag 列表
+  selected: new Set(),
+};
+
+// 尝试两个文件名：thresholds_GRU{k}.csv → threshold_GRU{k}.csv
+async function loadCSV(k){
+  const tryFiles = [`data/thresholds_GRU${k}.csv`, `data/threshold_GRU${k}.csv`];
+  for(const path of tryFiles){
+    try{
+      const text = await fetch(path, {cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.text(); });
+      const parsed = Papa.parse(text, {header:true, dynamicTyping:true});
+      if(parsed.data && parsed.data.length){
+        console.log('[gain] loaded', path, parsed.data.length);
+        return parsed.data.filter(r=>r && r.tag!=null);
+      }
+    }catch(e){ console.warn('[gain] load failed:', path, e); }
+  }
+  throw new Error('未找到阈值 CSV；请确认 data/thresholds_GRU'+k+'.csv 是否存在');
+}
+
+function computeCoverageRecall(rows){
+  // rows: [{tp,fp,fn,tn,tag, ...}, ...]
+  return rows.map(r=>{
+    const N = (r.tp||0)+(r.fp||0)+(r.fn||0)+(r.tn||0);
+    const coverage = N>0 ? ((r.tp||0)+(r.fp||0))/N : NaN;
+    const recall   = ((r.tp||0)+(r.fn||0))>0 ? (r.tp||0)/((r.tp||0)+(r.fn||0)) : NaN;
+    return {...r, coverage, recall};
+  }).filter(r=>isFinite(r.coverage) && isFinite(r.recall));
+}
+
+function listTags(rows){
+  return [...new Set(rows.map(r=>r.tag))].sort((a,b)=> a.localeCompare(b,'en',{numeric:true}));
+}
+
+function buildTagUI(){
+  const box = document.getElementById('tags');
+  const q = document.getElementById('q');
+  box.innerHTML = '';
+  const needle = q.value.trim().toLowerCase();
+  const show = state.tags.filter(t=> t.toLowerCase().includes(needle));
+  show.forEach(t=>{
+    const id = 't_'+t.replace(/[^a-z0-9]+/gi,'_');
+    const row = document.createElement('label');
+    const checked = state.selected.has(t);
+    row.innerHTML = `<input type="checkbox" id="${id}" ${checked?'checked':''}> ${t}`;
+    box.appendChild(row);
+    row.querySelector('input').addEventListener('change', e=>{
+      if(e.target.checked) state.selected.add(t); else state.selected.delete(t);
+      draw();
+      updateCount();
+    });
+  });
+  updateCount();
+}
+function updateCount(){
+  const el = document.getElementById('count');
+  el.textContent = `已选 ${state.selected.size} / 共 ${state.tags.length}`;
+}
+
+function curvesByTag(rows){
+  const byTag = new Map();
+  rows.forEach(r=>{
+    if(!state.selected.has(r.tag)) return;
+    if(!byTag.has(r.tag)) byTag.set(r.tag, []);
+    byTag.get(r.tag).push(r);
+  });
+  const traces = [];
+  for(const [tag, arr] of byTag){
+    // 以 coverage 升序，且去重/去 NaN
+    const sorted = arr.filter(d=>isFinite(d.coverage) && isFinite(d.recall))
+                      .sort((a,b)=> a.coverage - b.coverage);
+    traces.push({
+      x: sorted.map(d=>d.coverage),
+      y: sorted.map(d=>d.recall),
+      mode: 'lines',
+      name: tag,
+      hovertemplate: `${tag}<br>coverage=%{x:.2f}<br>recall=%{y:.2f}<extra></extra>`
+    });
+  }
+  return traces;
+}
+
+function draw(){
+  const rows = state.rows;
+  const traces = curvesByTag(rows);
+
+  if(document.getElementById('diag').checked){
+    traces.unshift({
+      x:[0,1], y:[0,1],
+      mode:'lines',
+      name:'baseline',
+      line:{dash:'dot'},
+      hoverinfo:'skip',
+      showlegend:false
+    });
+  }
+
+  const layout = {
+    height: 680,
+    margin:{l:80,r:20,t:40,b:80},
+    xaxis:{title:'Coverage (alert rate)', range:[0,1], tickformat:'.0%', tickmode:'auto'},
+    yaxis:{title:'Cumulative recall', range:[0,1], tickformat:'.0%'},
+    legend:{orientation:'h', y:-0.2},
+  };
+  const config = {displaylogo:false, responsive:true, modeBarButtonsToRemove:['select2d','lasso2d']};
+  Plotly.react('chart', traces, layout, config);
+}
+
+async function refresh(k){
+  state.k = k;
+  const raw = await loadCSV(k);
+  const rows = computeCoverageRecall(raw);
+  state.rows = rows;
+  state.tags = listTags(rows);
+
+  // 默认选前 8 个（避免一上来太挤），你可改成自定义名单
+  state.selected = new Set(state.tags.slice(0,8));
+
+  buildTagUI();
+  draw();
+}
+
+document.querySelectorAll('input[name="k"]').forEach(r=>{
+  r.addEventListener('change', e=> refresh(Number(e.target.value)));
+});
+document.getElementById('diag').addEventListener('change', draw);
+document.getElementById('btnAll').onclick = ()=>{
+  state.selected = new Set(state.tags);
+  buildTagUI(); draw();
+};
+document.getElementById('btnNone').onclick = ()=>{
+  state.selected = new Set();
+  buildTagUI(); draw();
+};
+document.getElementById('q').addEventListener('input', buildTagUI);
+
+// 启动
+refresh(14);
+</script>
+</body>
+</html>
