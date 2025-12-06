@@ -55,7 +55,16 @@
     #fsPanel{ position:fixed; inset:0; background:rgba(0,0,0,.75); display:none;
       align-items:center; justify-content:center; z-index:9999; }
     #fsPanel .frame{ width:95vw; height:90vh; background:#fff; border-radius:10px; border:0; }
-    #fsPanel .close{ position:absolute; top:14px; right:18px; padding:6px 10px; background:#fff; border-radius:8px; border:1px solid var(--soft); }
+    #fsPanel .close{ position:absolute; top:14px; right:18px; padding:6px 10px; background:#fff; border-radius:8px; border:1px solid #e5e7eb; }
+
+    /* Image zoom overlay for per-region PNGs (added) */
+    .imgbox img{ cursor: zoom-in; }
+    #imgFs{
+      position:fixed; inset:0; background:rgba(0,0,0,.85);
+      display:none; align-items:center; justify-content:center; z-index:10000;
+    }
+    #imgFs img{ max-width:95vw; max-height:92vh; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    #imgFs .close{ position:absolute; top:14px; right:18px; padding:6px 10px; background:#fff; border-radius:8px; border:1px solid #e5e7eb; }
   </style>
 </head>
 <body>
@@ -230,7 +239,10 @@
   <footer><p>Built for sta160‑wildfire · Static files, deployable on GitHub Pages</p></footer>
 </main>
 
-<!-- fullscreen overlay panel -->
+<!-- image fullscreen overlay (added) -->
+<div id="imgFs"><button class="close">Close (Esc)</button><img alt=""></div>
+
+<!-- fullscreen overlay for iframes (existing) -->
 <div id="fsPanel">
   <button class="close">Close (Esc)</button>
   <iframe class="frame"></iframe>
@@ -341,6 +353,25 @@ fillRegions(); selRegion.value = "West"; fillLats(); selLat.value = "Mid"; updat
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFs(); });
   document.querySelectorAll('.actions [data-fs]').forEach(btn=>{
     btn.addEventListener('click', ()=> openFs(btn.getAttribute('data-fs')));
+  });
+})();
+
+/* 4) Click-to-zoom for the three per-region images (added) */
+(function(){
+  const fs = document.getElementById('imgFs');
+  if(!fs) return;
+  const big = fs.querySelector('img');
+
+  function openImg(src){ big.src = src; fs.style.display = 'flex'; }
+  function closeImg(){ big.src = ''; fs.style.display = 'none'; }
+
+  fs.querySelector('.close').onclick = closeImg;
+  fs.addEventListener('click', (e)=>{ if(e.target === fs) closeImg(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeImg(); });
+
+  ['imgA','imgB','imgC'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.addEventListener('click', ()=> openImg(el.src)); }
   });
 })();
 </script>
