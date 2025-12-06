@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -28,6 +28,7 @@
     h3{margin:0 0 10px 0;font-size:20px}
     .muted{color:var(--ink-2)}
     .small{font-size:12px;color:var(--muted)}
+    .hint{color:var(--ink-2); margin-top:6px}
     .hero{padding:26px 0 8px 0}
     .pill{display:inline-block;padding:2px 8px;border:1px solid var(--soft);border-radius:999px;font-size:12px;margin-right:6px;background:#fff}
     .grid{display:grid;gap:14px}
@@ -73,55 +74,50 @@
 </header>
 
 <main class="wrap">
-  <!-- ===== 1) Main findings (moved to top) ===== -->
+  <!-- ===== 1) Main findings ===== -->
   <section class="hero" id="findings">
     <h2>Main findings</h2>
     <p class="muted">
-      日尺度格点（10–15 km²），history‑safe 特征；GRU 预测 <span class="pill">k=7</span><span class="pill">k=14</span> 天内是否出现新火；
-      学到的 spatial ignition prior 作为时变特征；post‑fire re‑ignition 用离散时间 hazard。
+      Daily grid (10–15 km²), history‑safe features; GRU predicts whether a new fire occurs within <span class="pill">k=7</span><span class="pill">k=14</span> days.
+      Learned spatial ignition prior used as time‑varying features; post‑fire re‑ignition analyzed with discrete‑time hazard.
     </p>
     <div class="grid cols-2">
       <div class="card">
-        <div class="card-header"><div class="card-title">整体表现</div></div>
+        <div class="card-header"><div class="card-title">Overall performance</div></div>
         <ul class="muted">
-          <li>k=14 + prior 在多数 region 上校准良好；PR-AUC、gain 曲线在中/高火区明显优于低火区。</li>
-          <li>典型强区：West_Mid, West_North, Coast_Mid, CentralWest_Mid+South_COMBINED。</li>
-          <li>弱区：CentralWest_South, Midwest_South 等低火区，precision 较低且曲线更 noisy。</li>
+          <li>k=14 + prior is well‑calibrated in most regions; PR‑AUC and gain curves clearly stronger in mid/high‑fire regions.</li>
+          <li>Strong: West_Mid, West_North, Coast_Mid, CentralWest_Mid+South_COMBINED.</li>
+          <li>Weaker: CentralWest_South, Midwest_South and other low‑fire regions.</li>
         </ul>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-title">Prior 的增益</div></div>
+        <div class="card-header"><div class="card-title">Benefit of the spatial prior</div></div>
         <ul class="muted">
-          <li>k=14：with_prior 相比 no_prior，ROC-AUC 平均 +0.02 ~ +0.03。</li>
-          <li>Top‑3% precision 在大多数 region 提升 0.03–0.08（少数略降）。</li>
+          <li>k=14: with_prior vs no_prior → ROC‑AUC +0.02 to +0.03 on average.</li>
+          <li>Top‑3% precision usually +0.03–0.08 (a few regions slightly down).</li>
         </ul>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-title">Top‑3%（k=14, with_prior）</div></div>
+        <div class="card-header"><div class="card-title">Top‑3% (k=14, with_prior)</div></div>
         <ul class="muted">
-          <li>全区域中位 precision ≈ 0.36；≈42% 的地区 ≥ 0.40；≈29% 的地区 ≥ 0.50。</li>
-          <li>在极度不平衡下，很多 region 的 top slice 仍具备较高收益。</li>
+          <li>Median precision ≈ 0.36; ≈42% of regions ≥ 0.40; ≈29% ≥ 0.50.</li>
         </ul>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Operating points</div></div>
         <ul class="muted">
-          <li>k=14, with_prior，区域特定阈值（目标 ≈30% precision）。</li>
-          <li>中/高火区 precision ~ 0.30–0.45；lift 通常 1.5–3× base。</li>
-          <li>alerts_per_fire 多数地区 2–3 条/火；balanced accuracy ~ 0.55–0.65。</li>
+          <li>k=14 with region‑specific thresholds (target ≈30% precision).</li>
+          <li>Precision ~0.30–0.45 in mid/high‑fire regions; lift typically 1.5–3× base rate.</li>
         </ul>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">k=7 vs k=14</div></div>
-        <ul class="muted">
-          <li>ROC‑AUC 高度相关，平均差很小（k=14 略低）；k=14 作为主 horizon，k=7 供短期决策/鲁棒性检验。</li>
-        </ul>
+        <ul class="muted"><li>ROC‑AUC highly correlated; mean difference small (k=14 slightly lower).</li></ul>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-title">Hazard（再点燃）</div></div>
+        <div class="card-header"><div class="card-title">Hazard (re‑ignition)</div></div>
         <ul class="muted">
-          <li>West_Mid：P(T≤30) ≈ 0.35，P(T≤60) ≈ 0.51，re‑ignition 快；多数其他地区 P(T≤60) 约 0.10–0.25。</li>
-          <li>由此划分 fast / mid / slow hazard tiers：快区可较高覆盖率，慢区适合较低 alert rate 与更长冷却期。</li>
+          <li>West_Mid fast; many other regions slower (P(T≤60) ≈ 0.10–0.25).</li>
         </ul>
       </div>
     </div>
@@ -130,171 +126,148 @@
   <!-- ===== 2) Per‑region diagnostics viewer ===== -->
   <section id="viewer">
     <h2>Per‑region diagnostics viewer</h2>
-    <p class="muted">选择 region、lat band、horizon、是否使用 spatial prior；自动加载三张诊断图：PR/ROC/校准、score 分布、gain & lift。</p>
+    <p class="muted">Pick a region, latitude band, horizon, and whether the GRU uses the spatial ignition prior. Three diagnostics will load: PR/ROC/calibration, score histogram, and gain & lift curves.</p>
 
     <div class="controls">
-      <div>
-        <label for="region">Region</label>
-        <select id="region"></select>
-      </div>
-      <div>
-        <label for="lat">Lat zone</label>
-        <select id="lat"></select>
-      </div>
-      <div>
-        <label for="k">Horizon k</label>
-        <select id="k">
-          <option value="7">7</option>
-          <option value="14" selected>14</option>
-        </select>
-      </div>
-      <div>
-        <label for="prior">Prior</label>
-        <select id="prior">
-          <option value="with_prior" selected>with spatial prior</option>
-          <option value="no_prior">no prior</option>
-        </select>
-      </div>
+      <div><label for="region">Region</label><select id="region"></select></div>
+      <div><label for="lat">Lat zone</label><select id="lat"></select></div>
+      <div><label for="k">Horizon k</label>
+        <select id="k"><option value="7">7</option><option value="14" selected>14</option></select></div>
+      <div><label for="prior">Prior</label>
+        <select id="prior"><option value="with_prior" selected>with spatial prior</option><option value="no_prior">no prior</option></select></div>
     </div>
 
     <div class="small" id="hint"></div>
 
     <div class="img-panel">
       <div class="imgbox">
-        <img id="imgA" alt="PR/ROC/Calibration plot" onerror="this.alt='找不到图片（PR/ROC/Calibration）'; this.style.opacity=0.5;">
+        <img id="imgA" alt="PR/ROC/Calibration plot" onerror="this.alt='Image not found (PR/ROC/Calibration)'; this.style.opacity=0.5;">
         <div class="small">PR‑ROC‑Reliability</div>
       </div>
       <div class="imgbox">
-        <img id="imgB" alt="Score histogram" onerror="this.alt='找不到图片（score histogram）'; this.style.opacity=0.5;">
+        <img id="imgB" alt="Score histogram" onerror="this.alt='Image not found (score histogram)'; this.style.opacity=0.5;">
         <div class="small">Score histogram</div>
       </div>
       <div class="imgbox">
-        <img id="imgC" alt="Gain & Lift curves" onerror="this.alt='找不到图片（gain & lift）'; this.style.opacity=0.5;">
+        <img id="imgC" alt="Gain & Lift curves" onerror="this.alt='Image not found (gain & lift)'; this.style.opacity=0.5;">
         <div class="small">Gain & lift</div>
       </div>
     </div>
   </section>
 
-  <!-- ===== 3) Interactive summaries (moved after viewer; now 7 cards) ===== -->
+  <!-- ===== 3) Interactive summaries ===== -->
   <section id="interactive">
     <h2>Interactive summaries</h2>
     <div class="grid cols-2">
       <div class="card">
-        <div class="actions"><button type="button" data-fs="gru_pr_curves.html">🔎 放大</button><a target="_blank" rel="noopener" href="gru_pr_curves.html">↗ 新标签</a></div>
-        <div class="card-header"><div class="card-title">PR overlays（k=14, with prior）</div></div>
+        <div class="actions"><button type="button" data-fs="gru_pr_curves.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="gru_pr_curves.html">↗ Open</a></div>
+        <div class="card-header"><div class="card-title">PR overlays (k=14, with prior)</div></div>
         <div class="iframe-full"><iframe src="gru_pr_curves.html" title="PR overlays (k=14 with prior)"></iframe></div>
+        <div class="hint small">💡 Legend is interactive: <strong>click</strong> a region to hide/show; <strong>double‑click</strong> to isolate; <strong>double‑click background</strong> to reset. Use toolbar to pan/box‑zoom and <em>Autoscale</em> to reset.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="gru_summary.html">🔎 放大</button><a target="_blank" rel="noopener" href="gru_summary.html">↗ 新标签</a></div>
-        <div class="card-header"><div class="card-title">Summary metrics（PR‑AUC / ROC‑AUC / base）</div></div>
+        <div class="actions"><button type="button" data-fs="gru_summary.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="gru_summary.html">↗ Open</a></div>
+        <div class="card-header"><div class="card-title">Summary metrics (PR‑AUC / ROC‑AUC / base)</div></div>
         <div class="iframe-full"><iframe src="gru_summary.html" title="GRU summary table & charts"></iframe></div>
+        <div class="hint small">💡 Click legend items to toggle series; use toolbar icons for zoom/pan; <em>Autoscale</em> resets the view.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="operating_points.html">🔎 放大</button><a target="_blank" rel="noopener" href="operating_points.html">↗ 新标签</a></div>
-        <div class="card-header"><div class="card-title">Operating points（k=14 & k=7）</div></div>
+        <div class="actions"><button type="button" data-fs="operating_points.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="operating_points.html">↗ Open</a></div>
+        <div class="card-header"><div class="card-title">Operating points (k=14 & k=7)</div></div>
         <div class="iframe-full"><iframe src="operating_points.html" title="Operating points"></iframe></div>
+        <div class="hint small">💡 Toggle k=7/k=14 traces in the legend; double‑click to focus on one.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="delta_top3.html">🔎 放大</button><a target="_blank" rel="noopener" href="delta_top3.html">↗ 新标签</a></div>
-        <div class="card-header"><div class="card-title">Top‑3% precision gains（with vs no prior）</div></div>
-        <div class="iframe-full"><iframe src="delta_top3.html" title="Top-3% precision gain"></iframe></div>
+        <div class="actions"><button type="button" data-fs="delta_top3.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="delta_top3.html">↗ Open</a></div>
+        <div class="card-header"><div class="card-title">Top‑3% precision gains (with vs no prior)</div></div>
+        <div class="iframe-full"><iframe src="delta_top3.html" title="Top‑3% precision gain"></iframe></div>
+        <div class="hint small">💡 Toggle <em>with_prior</em> / <em>no_prior</em> in the legend; use box‑zoom if x‑axis labels are dense.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="gain_overlay.html">🔎 放大</button><a target="_blank" rel="noopener" href="gain_overlay.html">↗ 新标签</a></div>
+        <div class="actions"><button type="button" data-fs="gain_overlay.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="gain_overlay.html">↗ Open</a></div>
         <div class="card-header"><div class="card-title">Gain overlay — coverage vs recall</div></div>
         <div class="iframe-full"><iframe src="gain_overlay.html" title="Gain overlay — coverage vs recall"></iframe></div>
+        <div class="hint small">💡 Use the left panel inside the chart to <strong>select regions</strong> and switch between <strong>k=7/14</strong>; the Plotly toolbar still supports pan/zoom.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="hazard_waiting.html">🔎 放大</button><a target="_blank" rel="noopener" href="hazard_waiting.html">↗ 新标签</a></div>
+        <div class="actions"><button type="button" data-fs="hazard_waiting.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="hazard_waiting.html">↗ Open</a></div>
         <div class="card-header"><div class="card-title">Median inter‑fire waiting time</div></div>
         <div class="iframe-full"><iframe src="hazard_waiting.html" title="Median waiting time"></iframe></div>
+        <div class="hint small">💡 Click legend to toggle series; use box‑zoom to examine specific regions.</div>
       </div>
 
       <div class="card">
-        <div class="actions"><button type="button" data-fs="hazard_cumprob.html">🔎 放大</button><a target="_blank" rel="noopener" href="hazard_cumprob.html">↗ 新标签</a></div>
-        <div class="card-header"><div class="card-title">Re‑ignition probability ≤ 30/60 days</div></div>
-        <div class="iframe-full"><iframe src="hazard_cumprob.html" title="Cumulative re-ignition probability"></iframe></div>
+        <div class="actions"><button type="button" data-fs="hazard_cumprob.html">🔎 Zoom</button><a target="_blank" rel="noopener" href="hazard_cumprob.html">↗ Open</a></div>
+        <div class="card-header"><div class="card-title">Re‑ignition probability ≤30/60 days</div></div>
+        <div class="iframe-full"><iframe src="hazard_cumprob.html" title="Cumulative re‑ignition probability"></iframe></div>
+        <div class="hint small">💡 Toggle 30‑day vs 60‑day bars in the legend; <strong>double‑click</strong> a legend item to isolate.</div>
       </div>
     </div>
-    <p class="small">若 iframe 未显示，请确认这些 HTML 位于仓库根目录并与本页同源（GitHub Pages 自动满足）。</p>
+    <p class="small">If an iframe does not render, make sure these HTML files are at the repository root and same origin (GitHub Pages handles this).</p>
   </section>
 
-  <!-- ===== 4) Methods (summary) ===== -->
+  <!-- ===== 4) Methods ===== -->
   <section id="methods">
-    <h2>Methods（summary）</h2>
+    <h2>Methods (summary)</h2>
     <div class="card">
       <ul>
-        <li>数据：固定格点（10–15 km²），每日 wildfire 指标 ∈{0,1} + 同日物理 covariates（天气、fuel），全量 features 均 history‑safe。</li>
-        <li>特征：1 日滞后；7–30 日滚动均值/和/极值；30 日无雨计数；CatBoost ignition prior 及其衍生（logit、rank、短期 lag、7 日滚动）。</li>
-        <li>时序：expanding window（2013–2021 训练，2022 验证，2023–2025 测试）；跨年边界 ±7 天移除；验证集做温度校准（temperature scaling）。</li>
-        <li>GRU：单层 + sigmoid；目标 <code>y_t^k = 1{火出现在 [t+1,t+k]}</code>；损失 weighted BCE；early stopping 以 PR‑AUC。</li>
-        <li>评价：PR/ROC、Brier & BSS、reliability、gain/lift；两类决策：固定 precision（如 30%）或 Top‑K（0.1–0.2% 网格）。</li>
-        <li>Hazard：3 天并窗（episode）；离散时间 risk set（region × lat_zone pooling）；输出 <code>h(t), S(t), P(T≤·)</code> 与 tier 对比。</li>
+        <li>Data: fixed grid (10–15 km²); daily wildfire indicator ∈{0,1} + same‑day physical covariates; all features are history‑safe.</li>
+        <li>Features: 1‑day lags; 7–30‑day rolling mean/sum/extrema; 30‑day “dryness counter”; CatBoost ignition prior and derived features (logit, rank, short lags, 7‑day rolling).</li>
+        <li>Time split: expanding window (train 2013–2021, val 2022, test 2023–2025); ±7 days removed around 2021/2022 and 2022/2023; temperature scaling on validation.</li>
+        <li>GRU: single‑layer + sigmoid; target <code>y_t^k = 1{fire in [t+1, t+k]}</code>; weighted BCE; early stopping on PR‑AUC.</li>
+        <li>Evaluation: PR/ROC, Brier & BSS, reliability, gain/lift; decisions—fixed precision (e.g., 30%) or Top‑K (0.1–0.2% of cells).</li>
+        <li>Hazard: 3‑day merge window for episodes; discrete‑time risk set pooled by region × lat_zone; outputs <code>h(t), S(t), P(T≤·)</code> and tiering.</li>
       </ul>
-      <p class="small">注：校准在 2022 上拟合（temperature scaling），在 2023–2025 上评估；
-      <code>alerts_per_fire</code> 定义为捕获一场火所需 alerts 条数（= 1 / recall 在所选覆盖率下的近似）。</p>
+      <p class="small">Calibration fitted on 2022, evaluated on 2023–2025; <code>alerts_per_fire</code> ≈ alerts needed to catch one fire (at chosen coverage).</p>
     </div>
   </section>
 
-  <footer>
-    <p>Built for sta160‑wildfire · 静态文件即可部署于 GitHub Pages</p>
-  </footer>
+  <footer><p>Built for sta160‑wildfire · Static files, deployable on GitHub Pages</p></footer>
 </main>
 
 <!-- fullscreen overlay panel -->
 <div id="fsPanel">
-  <button class="close">关闭 Esc</button>
+  <button class="close">Close (Esc)</button>
   <iframe class="frame"></iframe>
 </div>
 
-<noscript>需要启用 JavaScript 以使用 per‑region 诊断浏览器与放大功能。</noscript>
+<noscript>Enable JavaScript to use the per‑region viewer and zoom panel.</noscript>
 
 <script>
-/* ========== 1) REGION / LAT config（与你仓库目录一致） ========== */
+/* 1) Region/Lat config */
 const REGION_LAT_CONFIG = [
-  // CentralWest
   {tag:"CentralWest_FarNorth", region:"CentralWest", lat:"FarNorth"},
   {tag:"CentralWest_Mid", region:"CentralWest", lat:"Mid"},
   {tag:"CentralWest_Mid+South_COMBINED", region:"CentralWest", lat:"Mid+South_COMBINED"},
   {tag:"CentralWest_North", region:"CentralWest", lat:"North"},
   {tag:"CentralWest_South", region:"CentralWest", lat:"South"},
-
-  // Coast
   {tag:"Coast_FarNorth", region:"Coast", lat:"FarNorth"},
   {tag:"Coast_Mid", region:"Coast", lat:"Mid"},
   {tag:"Coast_North", region:"Coast", lat:"North"},
   {tag:"Coast_South", region:"Coast", lat:"South"},
-
-  // East
   {tag:"East_FarNorth", region:"East", lat:"FarNorth"},
   {tag:"East_Mid", region:"East", lat:"Mid"},
   {tag:"East_North", region:"East", lat:"North"},
   {tag:"East_NorthBand_COMBINED", region:"East", lat:"NorthBand_COMBINED"},
   {tag:"East_South", region:"East", lat:"South"},
-
-  // Midwest
   {tag:"Midwest_FarNorth", region:"Midwest", lat:"FarNorth"},
   {tag:"Midwest_Mid", region:"Midwest", lat:"Mid"},
   {tag:"Midwest_North", region:"Midwest", lat:"North"},
   {tag:"Midwest_South", region:"Midwest", lat:"South"},
-
-  // NorthEast
   {tag:"NorthEast_FarNorth", region:"NorthEast", lat:"FarNorth"},
   {tag:"NorthEast_North", region:"NorthEast", lat:"North"},
   {tag:"NorthEast_NorthBand_COMBINED", region:"NorthEast", lat:"NorthBand_COMBINED"},
-
-  // West
   {tag:"West_FarNorth", region:"West", lat:"FarNorth"},
   {tag:"West_Mid", region:"West", lat:"Mid"},
   {tag:"West_North", region:"West", lat:"North"}
 ];
 
-/* ========== 2) 下拉填充与图片路径 fallback 逻辑 ========== */
+/* 2) Dropdowns + robust image path fallback */
 const selRegion = document.getElementById('region');
 const selLat    = document.getElementById('lat');
 const selK      = document.getElementById('k');
@@ -306,37 +279,39 @@ function regions(){ return unique(REGION_LAT_CONFIG.map(x=>x.region)).sort(); }
 function latsOf(region){ return REGION_LAT_CONFIG.filter(x=>x.region===region).map(x=>x.lat); }
 function tagOf(region, lat){ const item = REGION_LAT_CONFIG.find(x=>x.region===region && x.lat===lat); return item ? item.tag : null; }
 
-function fillRegions(){
-  selRegion.innerHTML = regions().map(r=>`<option value="${r}">${r}</option>`).join('');
-}
+function fillRegions(){ selRegion.innerHTML = regions().map(r=>`<option value="${r}">${r}</option>`).join(''); }
 function fillLats(){
   const r = selRegion.value;
   const lats = unique(latsOf(r));
   selLat.innerHTML = lats.map(l=>`<option value="${l}">${l}</option>`).join('');
 }
 
-// 尝试多种路径/命名（平铺、嵌套、空格/合并带变体）
+// Build candidate URLs under multiple root folders and name variants
 function buildCandidates(tag, k, pr, plot){
-  const flat   = `figs/gru_region/${tag}_k${k}_GRU_${pr}_${plot}.png`;
-  const nested = `figs/gru_region/${tag}/figs/${tag}_k${k}_GRU_${pr}_${plot}.png`;
-
-  const tagSpace = tag.replace('FarNorth','Far North');
-  const flatSpace   = `figs/gru_region/${tagSpace}_k${k}_GRU_${pr}_${plot}.png`;
-  const nestedSpace = `figs/gru_region/${tagSpace}/figs/${tagSpace}_k${k}_GRU_${pr}_${plot}.png`;
-
-  const tagBand = tag.replace('_NorthBand_COMBINED','_NorthBand');
-  const flatBand   = `figs/gru_region/${tagBand}_k${k}_GRU_${pr}_${plot}.png`;
-  const nestedBand = `figs/gru_region/${tagBand}/figs/${tagBand}_k${k}_GRU_${pr}_${plot}.png`;
-
-  return [flat, nested, flatSpace, nestedSpace, flatBand, nestedBand];
+  const fname = `${tag}_k${k}_GRU_${pr}_${plot}.png`;
+  // expected roots
+  const flat   = `figs/gru_region/${fname}`;
+  const nested = `figs/gru_region/${tag}/figs/${fname}`;
+  // your current repo: per_region/<Tag>/figs
+  const perA   = `per_region/${tag}/figs/${fname}`;
+  const perB   = `per_region/${tag.replace('FarNorth','Far North')}/figs/${fname.replace('FarNorth','Far North')}`;
+  const perC   = `per_region/${tag.replace('_NorthBand_COMBINED','_NorthBand')}/figs/${fname.replace('_NorthBand_COMBINED','_NorthBand')}`;
+  // also try spaced/band variants in figs/gru_region
+  const flatSpace   = `figs/gru_region/${fname.replace('FarNorth','Far North')}`;
+  const nestedSpace = `figs/gru_region/${tag.replace('FarNorth','Far North')}/figs/${fname.replace('FarNorth','Far North')}`;
+  const flatBand    = `figs/gru_region/${fname.replace('_NorthBand_COMBINED','_NorthBand')}`;
+  const nestedBand  = `figs/gru_region/${tag.replace('_NorthBand_COMBINED','_NorthBand')}/figs/${fname.replace('_NorthBand_COMBINED','_NorthBand')}`;
+  return [flat, nested, perA, perB, perC, flatSpace, nestedSpace, flatBand, nestedBand];
 }
+
 function setWithFallback(img, urls){
-  if(!urls.length){ img.alt='找不到图片'; img.style.opacity=0.5; return; }
+  if(!urls.length){ img.alt='Image not found'; img.style.opacity=0.5; return; }
   const url = urls.shift();
   img.onerror = ()=>{ setWithFallback(img, urls); };
   console.log('[viewer] try:', url);
   img.src = url;
 }
+
 function updateImages(){
   const tag = tagOf(selRegion.value, selLat.value);
   const k   = selK.value;
@@ -347,24 +322,16 @@ function updateImages(){
     const urls = buildCandidates(tag, k, pr, plot);
     setWithFallback(document.getElementById(ids[i]), urls);
   });
-  hint.textContent = `当前：${tag} · k=${k} · ${pr}（自动多路径匹配）`;
+  hint.textContent = `Current: ${tag} · k=${k} · ${pr} (auto path fallback)`;
 }
 
-// 初始化默认项
-fillRegions();
-selRegion.value = "West";
-fillLats();
-selLat.value = "Mid";
-updateImages();
-
+// init defaults
+fillRegions(); selRegion.value = "West"; fillLats(); selLat.value = "Mid"; updateImages();
 [selRegion, selLat, selK, selPrior].forEach(el=>{
-  el.addEventListener('change', ()=>{
-    if(el===selRegion){ fillLats(); }
-    updateImages();
-  });
+  el.addEventListener('change', ()=>{ if(el===selRegion){ fillLats(); } updateImages(); });
 });
 
-/* ========== 3) 交互卡片：放大/新标签打开 ========== */
+/* 3) Zoom panel for iframes */
 (function(){
   const panel = document.getElementById('fsPanel');
   const frame = panel.querySelector('.frame');
@@ -372,7 +339,6 @@ updateImages();
   function closeFs(){ frame.src='about:blank'; panel.style.display='none'; }
   panel.querySelector('.close').onclick = closeFs;
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFs(); });
-
   document.querySelectorAll('.actions [data-fs]').forEach(btn=>{
     btn.addEventListener('click', ()=> openFs(btn.getAttribute('data-fs')));
   });
